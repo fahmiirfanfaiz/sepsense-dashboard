@@ -6,19 +6,27 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "contract:emit": "prisma contract emit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@prisma/orm-postgres": "^8.0.0-rc.18",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
     "express": "^5.3.0",
-    "morgan": "^1.12.1"
+    "morgan": "^1.12.1",
+    "mqtt": "^5.16.1",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@prisma/cli-engine": "^0.7.0",
+    "@types/node": "^26.6.5",
+    "nodemon": "^3.1.14",
+    "prisma": "^8.0.0-rc.23"
   }
 }
