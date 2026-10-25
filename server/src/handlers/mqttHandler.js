@@ -6,7 +6,7 @@ export function registerMqttHandler(client) {
             const [, deviceId] = topic.split("/");
             const data = JSON.parse(payload.toString());
 
-            console.log(`[MQTT] Data diterima dari device: ${deviceId}`);
+            console.log(`[MQTT] Data diterima dari device: ${deviceId}`, JSON.stringify(data, null, 2));
             getIO().to(`device:${deviceId}`).emit("sensor:data", { deviceId, ...data });
         } catch (err) {
             console.error("[MQTT] gagal memproses pesan:", err.message);

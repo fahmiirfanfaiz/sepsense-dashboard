@@ -4,32 +4,618 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
-    "Post": {
-      "model": "Post",
+    "ai_predictions": {
+      "model": "AiPrediction",
       "namespace": "public"
     },
-    "User": {
+    "alerts": {
+      "model": "Alert",
+      "namespace": "public"
+    },
+    "devices": {
+      "model": "Device",
+      "namespace": "public"
+    },
+    "monitoring_sessions": {
+      "model": "MonitoringSession",
+      "namespace": "public"
+    },
+    "patients": {
+      "model": "Patient",
+      "namespace": "public"
+    },
+    "refresh_tokens": {
+      "model": "RefreshToken",
+      "namespace": "public"
+    },
+    "risk_assessments": {
+      "model": "RiskAssessment",
+      "namespace": "public"
+    },
+    "users": {
       "model": "User",
+      "namespace": "public"
+    },
+    "vital_readings": {
+      "model": "VitalReading",
       "namespace": "public"
     }
   },
   "domain": {
     "namespaces": {
       "public": {
+        "enum": {
+          "AlertStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "ACTIVE",
+                "value": "ACTIVE"
+              },
+              {
+                "name": "ACKNOWLEDGED",
+                "value": "ACKNOWLEDGED"
+              }
+            ]
+          },
+          "RiskLevel": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "AMAN",
+                "value": "AMAN"
+              },
+              {
+                "name": "WASPADA",
+                "value": "WASPADA"
+              },
+              {
+                "name": "RISIKO",
+                "value": "RISIKO"
+              }
+            ]
+          },
+          "Role": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "DOKTER",
+                "value": "DOKTER"
+              },
+              {
+                "name": "PERAWAT",
+                "value": "PERAWAT"
+              },
+              {
+                "name": "APOTEKER",
+                "value": "APOTEKER"
+              }
+            ]
+          }
+        },
         "models": {
-          "Post": {
+          "AiPrediction": {
             "fields": {
-              "authorId": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
-              "content": {
+              "modelVersion": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "predictedLabel": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "probability": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "windowEnd": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "windowStart": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "modelVersion": {
+                  "column": "model_version"
+                },
+                "predictedLabel": {
+                  "column": "predicted_label"
+                },
+                "probability": {
+                  "column": "probability"
+                },
+                "sessionId": {
+                  "column": "session_id"
+                },
+                "windowEnd": {
+                  "column": "window_end"
+                },
+                "windowStart": {
+                  "column": "window_start"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ai_predictions"
+            }
+          },
+          "Alert": {
+            "fields": {
+              "acknowledgedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "acknowledgedBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "riskAssessmentId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "AlertStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "triggeredAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "acknowledger": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "acknowledgedBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "riskAssessment": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "riskAssessmentId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "RiskAssessment",
+                  "namespace": "public"
+                }
+              },
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "acknowledgedAt": {
+                  "column": "acknowledged_at"
+                },
+                "acknowledgedBy": {
+                  "column": "acknowledged_by"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "riskAssessmentId": {
+                  "column": "risk_assessment_id"
+                },
+                "sessionId": {
+                  "column": "session_id"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "triggeredAt": {
+                  "column": "triggered_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "alerts"
+            }
+          },
+          "Device": {
+            "fields": {
+              "deviceCode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "isActive": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastHeartbeatAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "statusMax30102": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "statusMlx90614": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "statusMpu6050": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "sessions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "deviceId"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "deviceCode": {
+                  "column": "device_code"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isActive": {
+                  "column": "is_active"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "lastHeartbeatAt": {
+                  "column": "last_heartbeat_at"
+                },
+                "statusMax30102": {
+                  "column": "status_max30102"
+                },
+                "statusMlx90614": {
+                  "column": "status_mlx90614"
+                },
+                "statusMpu6050": {
+                  "column": "status_mpu6050"
+                }
+              },
+              "namespaceId": "public",
+              "table": "devices"
+            }
+          },
+          "MonitoringSession": {
+            "fields": {
+              "deviceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "endedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "startedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "startedBy": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "aiPredictions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "AiPrediction",
+                  "namespace": "public"
+                }
+              },
+              "alerts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "Alert",
+                  "namespace": "public"
+                }
+              },
+              "device": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "deviceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Device",
+                  "namespace": "public"
+                }
+              },
+              "patient": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              },
+              "readings": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "VitalReading",
+                  "namespace": "public"
+                }
+              },
+              "starter": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "startedBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "deviceId": {
+                  "column": "device_id"
+                },
+                "endedAt": {
+                  "column": "ended_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "patientId": {
+                  "column": "patient_id"
+                },
+                "startedAt": {
+                  "column": "started_at"
+                },
+                "startedBy": {
+                  "column": "started_by"
+                }
+              },
+              "namespaceId": "public",
+              "table": "monitoring_sessions"
+            }
+          },
+          "Patient": {
+            "fields": {
+              "birthDate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/date-string@1",
                   "kind": "scalar"
                 }
               },
@@ -47,28 +633,115 @@
                   "kind": "scalar"
                 }
               },
-              "title": {
+              "medicalRecordNo": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "updatedAt": {
+              "name": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "roomBed": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               }
             },
             "relations": {
-              "author": {
+              "sessions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "patientId"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "birthDate": {
+                  "column": "birth_date"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "medicalRecordNo": {
+                  "column": "medical_record_no"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "roomBed": {
+                  "column": "room_bed"
+                }
+              },
+              "namespaceId": "public",
+              "table": "patients"
+            }
+          },
+          "RefreshToken": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "tokenHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
                   "localFields": [
-                    "authorId"
+                    "userId"
                   ],
                   "targetFields": [
                     "id"
@@ -82,27 +755,164 @@
             },
             "storage": {
               "fields": {
-                "authorId": {
-                  "column": "authorId"
-                },
-                "content": {
-                  "column": "content"
-                },
                 "createdAt": {
-                  "column": "createdAt"
+                  "column": "created_at"
+                },
+                "expiresAt": {
+                  "column": "expires_at"
                 },
                 "id": {
                   "column": "id"
                 },
-                "title": {
-                  "column": "title"
+                "tokenHash": {
+                  "column": "token_hash"
                 },
-                "updatedAt": {
-                  "column": "updatedAt"
+                "userId": {
+                  "column": "user_id"
                 }
               },
               "namespaceId": "public",
-              "table": "Post"
+              "table": "refresh_tokens"
+            }
+          },
+          "RiskAssessment": {
+            "fields": {
+              "c1Hr": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "c2Rr": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "c3Temp": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "c4Spo2": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "evaluatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "riskLevel": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "RiskLevel",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "riskScore": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "vitalReadingId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "alert": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "riskAssessmentId"
+                  ]
+                },
+                "to": {
+                  "model": "Alert",
+                  "namespace": "public"
+                }
+              },
+              "vitalReading": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "vitalReadingId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "VitalReading",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "c1Hr": {
+                  "column": "c1_hr"
+                },
+                "c2Rr": {
+                  "column": "c2_rr"
+                },
+                "c3Temp": {
+                  "column": "c3_temp"
+                },
+                "c4Spo2": {
+                  "column": "c4_spo2"
+                },
+                "evaluatedAt": {
+                  "column": "evaluated_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "riskLevel": {
+                  "column": "risk_level"
+                },
+                "riskScore": {
+                  "column": "risk_score"
+                },
+                "vitalReadingId": {
+                  "column": "vital_reading_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "risk_assessments"
             }
           },
           "User": {
@@ -129,40 +939,76 @@
                 }
               },
               "name": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "username": {
-                "nullable": true,
+              "passwordHash": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "role": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "Role",
+                  "namespaceId": "public",
+                  "plane": "domain"
                 }
               }
             },
             "relations": {
-              "posts": {
+              "acknowledgedAlerts": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "authorId"
+                    "acknowledgedBy"
                   ]
                 },
                 "to": {
-                  "model": "Post",
+                  "model": "Alert",
+                  "namespace": "public"
+                }
+              },
+              "refreshTokens": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "RefreshToken",
+                  "namespace": "public"
+                }
+              },
+              "startedSessions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "startedBy"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
                   "namespace": "public"
                 }
               }
@@ -170,7 +1016,7 @@
             "storage": {
               "fields": {
                 "createdAt": {
-                  "column": "createdAt"
+                  "column": "created_at"
                 },
                 "email": {
                   "column": "email"
@@ -181,15 +1027,139 @@
                 "name": {
                   "column": "name"
                 },
-                "updatedAt": {
-                  "column": "updatedAt"
+                "passwordHash": {
+                  "column": "password_hash"
                 },
-                "username": {
-                  "column": "username"
+                "role": {
+                  "column": "role"
                 }
               },
               "namespaceId": "public",
-              "table": "User"
+              "table": "users"
+            }
+          },
+          "VitalReading": {
+            "fields": {
+              "heartRate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "receivedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "recordedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "respiratoryRate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "spo2": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "temperature": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "assessment": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "vitalReadingId"
+                  ]
+                },
+                "to": {
+                  "model": "RiskAssessment",
+                  "namespace": "public"
+                }
+              },
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "MonitoringSession",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "heartRate": {
+                  "column": "heart_rate"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "receivedAt": {
+                  "column": "received_at"
+                },
+                "recordedAt": {
+                  "column": "recorded_at"
+                },
+                "respiratoryRate": {
+                  "column": "respiratory_rate"
+                },
+                "sessionId": {
+                  "column": "session_id"
+                },
+                "spo2": {
+                  "column": "spo2"
+                },
+                "temperature": {
+                  "column": "temperature"
+                }
+              },
+              "namespaceId": "public",
+              "table": "vital_readings"
             }
           }
         }
@@ -200,20 +1170,57 @@
     "namespaces": {
       "public": {
         "entries": {
+          "rls": {
+            "ai_predictions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "ai_predictions"
+            },
+            "alerts": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "alerts"
+            },
+            "devices": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "devices"
+            },
+            "monitoring_sessions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "monitoring_sessions"
+            },
+            "patients": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "patients"
+            },
+            "refresh_tokens": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "refresh_tokens"
+            },
+            "risk_assessments": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "risk_assessments"
+            },
+            "users": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "users"
+            },
+            "vital_readings": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "vital_readings"
+            }
+          },
           "table": {
-            "Post": {
+            "ai_predictions": {
               "columns": {
-                "authorId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "nullable": false
-                },
-                "content": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "createdAt": {
+                "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "default": {
@@ -231,12 +1238,32 @@
                   },
                   "nullable": false
                 },
-                "title": {
+                "model_version": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "updatedAt": {
+                "predicted_label": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": false
+                },
+                "probability": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": false
+                },
+                "session_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "window_end": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false
+                },
+                "window_start": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "nullable": false
@@ -245,31 +1272,40 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Post_authorId_idx_e47547ed"
+                    "name": "ai_predictions_session_id_idx_00ba47bf"
                   },
                   "source": {
                     "columns": [
-                      "authorId"
+                      "session_id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Post"
+                    "tableName": "ai_predictions"
                   },
                   "target": {
                     "columns": [
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "User"
+                    "tableName": "monitoring_sessions"
                   }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "authorId"
+                    "session_id"
                   ],
-                  "name": "Post_authorId_idx_e47547ed",
-                  "prefix": "Post_authorId_idx",
+                  "name": "ai_predictions_session_id_idx_00ba47bf",
+                  "prefix": "ai_predictions_session_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "session_id",
+                    "window_end"
+                  ],
+                  "name": "ai_predictions_session_id_window_end_idx_610237d1",
+                  "prefix": "ai_predictions_session_id_window_end_idx",
                   "unique": false
                 }
               ],
@@ -280,9 +1316,652 @@
               },
               "uniques": []
             },
-            "User": {
+            "alerts": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('ACTIVE', 'ACKNOWLEDGED')",
+                  "name": "alerts_status_check_8c31f1e5",
+                  "prefix": "alerts_status_check"
+                }
+              ],
               "columns": {
-                "createdAt": {
+                "acknowledged_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "acknowledged_by": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "risk_assessment_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "session_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "ACTIVE"
+                  },
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "AlertStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "triggered_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "risk_assessment_id"
+                    ]
+                  },
+                  "source": {
+                    "columns": [
+                      "risk_assessment_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "alerts"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "risk_assessments"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "alerts_session_id_idx_00ba47bf"
+                  },
+                  "source": {
+                    "columns": [
+                      "session_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "alerts"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "monitoring_sessions"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "alerts_acknowledged_by_idx_de4bc076"
+                  },
+                  "source": {
+                    "columns": [
+                      "acknowledged_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "alerts"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "acknowledged_by"
+                  ],
+                  "name": "alerts_acknowledged_by_idx_de4bc076",
+                  "prefix": "alerts_acknowledged_by_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "session_id"
+                  ],
+                  "name": "alerts_session_id_idx_00ba47bf",
+                  "prefix": "alerts_session_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "session_id",
+                    "status"
+                  ],
+                  "name": "alerts_session_id_status_idx_f571d3b1",
+                  "prefix": "alerts_session_id_status_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "risk_assessment_id"
+                  ]
+                }
+              ]
+            },
+            "devices": {
+              "columns": {
+                "device_code": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "is_active": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "last_heartbeat_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "status_max30102": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
+                "status_mlx90614": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
+                "status_mpu6050": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "device_code"
+                  ]
+                }
+              ]
+            },
+            "monitoring_sessions": {
+              "columns": {
+                "device_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "ended_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "patient_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "started_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "started_by": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "monitoring_sessions_patient_id_idx_2f641dda"
+                  },
+                  "source": {
+                    "columns": [
+                      "patient_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "monitoring_sessions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "patients"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "monitoring_sessions_device_id_idx_8f329912"
+                  },
+                  "source": {
+                    "columns": [
+                      "device_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "monitoring_sessions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "devices"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "monitoring_sessions_started_by_idx_dc9966c0"
+                  },
+                  "source": {
+                    "columns": [
+                      "started_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "monitoring_sessions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "device_id"
+                  ],
+                  "name": "monitoring_sessions_device_id_idx_8f329912",
+                  "prefix": "monitoring_sessions_device_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patient_id"
+                  ],
+                  "name": "monitoring_sessions_patient_id_idx_2f641dda",
+                  "prefix": "monitoring_sessions_patient_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "started_by"
+                  ],
+                  "name": "monitoring_sessions_started_by_idx_dc9966c0",
+                  "prefix": "monitoring_sessions_started_by_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "device_id"
+                  ],
+                  "name": "one_active_session_per_device_3bd1b17c",
+                  "prefix": "one_active_session_per_device",
+                  "unique": true,
+                  "where": "(ended_at IS NULL)"
+                },
+                {
+                  "columns": [
+                    "patient_id"
+                  ],
+                  "name": "one_active_session_per_patient_7d9b9f4c",
+                  "prefix": "one_active_session_per_patient",
+                  "unique": true,
+                  "where": "(ended_at IS NULL)"
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "patients": {
+              "columns": {
+                "birth_date": {
+                  "codecId": "pg/date-string@1",
+                  "dataType": "pg/date",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "medical_record_no": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "room_bed": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "medical_record_no"
+                  ]
+                }
+              ]
+            },
+            "refresh_tokens": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "token_hash": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "user_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "refresh_tokens_user_id_idx_6c952402"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "refresh_tokens"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "user_id"
+                  ],
+                  "name": "refresh_tokens_user_id_idx_6c952402",
+                  "prefix": "refresh_tokens_user_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "token_hash"
+                  ]
+                }
+              ]
+            },
+            "risk_assessments": {
+              "checks": [
+                {
+                  "expression": "\"risk_level\" IN ('AMAN', 'WASPADA', 'RISIKO')",
+                  "name": "risk_assessments_risk_level_check_84946b5d",
+                  "prefix": "risk_assessments_risk_level_check"
+                }
+              ],
+              "columns": {
+                "c1_hr": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": false
+                },
+                "c2_rr": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": false
+                },
+                "c3_temp": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": false
+                },
+                "c4_spo2": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": false
+                },
+                "evaluated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "risk_level": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "RiskLevel",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "risk_score": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "vital_reading_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "vital_reading_id"
+                    ]
+                  },
+                  "source": {
+                    "columns": [
+                      "vital_reading_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "risk_assessments"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "vital_readings"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "vital_reading_id"
+                  ]
+                }
+              ]
+            },
+            "users": {
+              "checks": [
+                {
+                  "expression": "\"role\" IN ('DOKTER', 'PERAWAT', 'APOTEKER')",
+                  "name": "users_role_check_5b119231",
+                  "prefix": "users_role_check"
+                }
+              ],
+              "columns": {
+                "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
                   "default": {
@@ -308,17 +1987,23 @@
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "dataType": "pg/timestamptz",
                   "nullable": false
                 },
-                "username": {
+                "password_hash": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
+                },
+                "role": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "Role",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 }
               },
               "foreignKeys": [],
@@ -335,6 +2020,129 @@
                   ]
                 }
               ]
+            },
+            "vital_readings": {
+              "columns": {
+                "heart_rate": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "received_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "recorded_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false
+                },
+                "respiratory_rate": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
+                "session_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "spo2": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
+                "temperature": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "vital_readings_session_id_idx_00ba47bf"
+                  },
+                  "source": {
+                    "columns": [
+                      "session_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "vital_readings"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "monitoring_sessions"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "session_id"
+                  ],
+                  "name": "vital_readings_session_id_idx_00ba47bf",
+                  "prefix": "vital_readings_session_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "session_id",
+                    "recorded_at"
+                  ],
+                  "name": "vital_readings_session_id_recorded_at_idx_fd8ea955",
+                  "prefix": "vital_readings_session_id_recorded_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            }
+          },
+          "valueSet": {
+            "AlertStatus": {
+              "kind": "valueSet",
+              "values": [
+                "ACTIVE",
+                "ACKNOWLEDGED"
+              ]
+            },
+            "RiskLevel": {
+              "kind": "valueSet",
+              "values": [
+                "AMAN",
+                "WASPADA",
+                "RISIKO"
+              ]
+            },
+            "Role": {
+              "kind": "valueSet",
+              "values": [
+                "DOKTER",
+                "PERAWAT",
+                "APOTEKER"
+              ]
             }
           }
         },
@@ -342,44 +2150,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a51b4833fdaffe730572670ccc27dd89af7e0726ab3de7f428d21702d687cc15"
-  },
-  "execution": {
-    "executionHash": "4e88564095b5e0ba7904ffdba3c563ef916d87688c8c483c67055f71a9194f0f",
-    "mutations": {
-      "defaults": [
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "Post",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "User",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        }
-      ]
-    }
+    "storageHash": "443e759a3af0ff1bd71f82213cc940767fbbb4910a8488349dcb926974d3c0f6"
   },
   "capabilities": {
     "postgres": {

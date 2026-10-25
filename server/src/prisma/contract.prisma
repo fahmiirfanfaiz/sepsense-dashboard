@@ -1,21 +1,170 @@
 // use prisma-8
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  username  String?
-  name      String?
-  posts     Post[]
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+enum Role {
+  DOKTER
+  PERAWAT
+  APOTEKER
 }
 
-model Post {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+enum RiskLevel {
+  AMAN
+  WASPADA
+  RISIKO
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+}
+
+model User {
+  id           Int               @id @default(autoincrement())
+  name         String
+  email        String            @unique
+  passwordHash String            @map("password_hash")
+  role         Role
+  createdAt    TimestamptzString @default(now()) @map("created_at")
+
+  refreshTokens      RefreshToken[]
+  startedSessions    MonitoringSession[]
+  acknowledgedAlerts Alert[]
+
+  @@map("users")
+  @@rls
+}
+
+model RefreshToken {
+  id        Int               @id @default(autoincrement())
+  userId    Int               @map("user_id")
+  tokenHash String            @unique @map("token_hash")
+  expiresAt TimestamptzString @map("expires_at")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+  @@rls
+}
+
+model Patient {
+  id              Int               @id @default(autoincrement())
+  medicalRecordNo String            @unique @map("medical_record_no")
+  name            String
+  birthDate       DateString?       @map("birth_date")
+  roomBed         String?           @map("room_bed")
+  createdAt       TimestamptzString @default(now()) @map("created_at")
+
+  sessions MonitoringSession[]
+
+  @@map("patients")
+  @@rls
+}
+
+model Device {
+  id              Int                @id @default(autoincrement())
+  deviceCode      String             @unique @map("device_code")
+  label           String?
+  isActive        Boolean            @default(true) @map("is_active")
+  lastHeartbeatAt TimestamptzString? @map("last_heartbeat_at")
+  statusMax30102  Boolean            @default(false) @map("status_max30102")
+  statusMpu6050   Boolean            @default(false) @map("status_mpu6050")
+  statusMlx90614  Boolean            @default(false) @map("status_mlx90614")
+
+  sessions MonitoringSession[]
+
+  @@map("devices")
+  @@rls
+}
+
+model MonitoringSession {
+  id        Int                @id @default(autoincrement())
+  patientId Int                @map("patient_id")
+  deviceId  Int                @map("device_id")
+  startedBy Int                @map("started_by")
+  startedAt TimestamptzString  @default(now()) @map("started_at")
+  endedAt   TimestamptzString? @map("ended_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  device  Device  @relation(fields: [deviceId], references: [id])
+  starter User    @relation(fields: [startedBy], references: [id])
+
+  readings      VitalReading[]
+  alerts        Alert[]
+  aiPredictions AiPrediction[]
+
+  @@index([deviceId], unique: true, where: sql`(ended_at IS NULL)`, name: "one_active_session_per_device")
+  @@index([patientId], unique: true, where: sql`(ended_at IS NULL)`, name: "one_active_session_per_patient")
+  @@map("monitoring_sessions")
+  @@rls
+}
+
+model VitalReading {
+  id              Int               @id @default(autoincrement())
+  sessionId       Int               @map("session_id")
+  recordedAt      TimestamptzString @map("recorded_at")
+  receivedAt      TimestamptzString @default(now()) @map("received_at")
+  heartRate       Float?            @map("heart_rate")
+  respiratoryRate Float?            @map("respiratory_rate")
+  spo2            Float?
+  temperature     Float?
+
+  session    MonitoringSession @relation(fields: [sessionId], references: [id])
+  assessment RiskAssessment?
+
+  @@index([sessionId, recordedAt])
+  @@map("vital_readings")
+  @@rls
+}
+
+model RiskAssessment {
+  id             Int               @id @default(autoincrement())
+  vitalReadingId Int               @unique @map("vital_reading_id")
+  c1Hr           Boolean           @map("c1_hr")
+  c2Rr           Boolean           @map("c2_rr")
+  c3Temp         Boolean           @map("c3_temp")
+  c4Spo2         Boolean           @map("c4_spo2")
+  riskScore      Int               @map("risk_score")
+  riskLevel      RiskLevel         @map("risk_level")
+  evaluatedAt    TimestamptzString @default(now()) @map("evaluated_at")
+
+  vitalReading VitalReading @relation(fields: [vitalReadingId], references: [id])
+  alert        Alert?
+
+  @@map("risk_assessments")
+  @@rls
+}
+
+model Alert {
+  id               Int                @id @default(autoincrement())
+  riskAssessmentId Int                @unique @map("risk_assessment_id")
+  sessionId        Int                @map("session_id")
+  acknowledgedBy   Int?               @map("acknowledged_by")
+  status           AlertStatus        @default(ACTIVE)
+  triggeredAt      TimestamptzString  @default(now()) @map("triggered_at")
+  acknowledgedAt   TimestamptzString? @map("acknowledged_at")
+
+  riskAssessment RiskAssessment    @relation(fields: [riskAssessmentId], references: [id])
+  session        MonitoringSession @relation(fields: [sessionId], references: [id])
+  acknowledger   User?             @relation(fields: [acknowledgedBy], references: [id])
+
+  @@index([sessionId, status])
+  @@map("alerts")
+  @@rls
+}
+
+model AiPrediction {
+  id             Int               @id @default(autoincrement())
+  sessionId      Int               @map("session_id")
+  windowStart    TimestamptzString @map("window_start")
+  windowEnd      TimestamptzString @map("window_end")
+  modelVersion   String            @map("model_version")
+  probability    Float
+  predictedLabel Boolean           @map("predicted_label")
+  createdAt      TimestamptzString @default(now()) @map("created_at")
+
+  session MonitoringSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, windowEnd])
+  @@map("ai_predictions")
+  @@rls
 }

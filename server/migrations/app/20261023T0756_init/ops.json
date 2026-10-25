@@ -1,0 +1,2243 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.ai_predictions",
+    "label": "Create table \"ai_predictions\"",
+    "summary": "Creates table \"ai_predictions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ai_predictions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ai_predictions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"ai_predictions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ai_predictions\"",
+        "sql": "CREATE TABLE \"public\".\"ai_predictions\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"model_version\" text NOT NULL,\n  \"predicted_label\" bool NOT NULL,\n  \"probability\" float8 NOT NULL,\n  \"session_id\" int4 NOT NULL,\n  \"window_end\" timestamptz NOT NULL,\n  \"window_start\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ai_predictions\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"ai_predictions\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.alerts",
+    "label": "Create table \"alerts\"",
+    "summary": "Creates table \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"alerts\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"alerts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"alerts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"alerts\"",
+        "sql": "CREATE TABLE \"public\".\"alerts\" (\n  \"acknowledged_at\" timestamptz,\n  \"acknowledged_by\" int4,\n  \"id\" SERIAL NOT NULL,\n  \"risk_assessment_id\" int4 NOT NULL,\n  \"session_id\" int4 NOT NULL,\n  \"status\" text DEFAULT 'ACTIVE' NOT NULL,\n  \"triggered_at\" timestamptz DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"alerts_status_check_8c31f1e5\" CHECK (\"status\" IN ('ACTIVE', 'ACKNOWLEDGED'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"alerts\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"alerts\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"alerts\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.devices",
+    "label": "Create table \"devices\"",
+    "summary": "Creates table \"devices\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "devices"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"devices\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"devices\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"devices\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"devices\"",
+        "sql": "CREATE TABLE \"public\".\"devices\" (\n  \"device_code\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"is_active\" bool DEFAULT true NOT NULL,\n  \"label\" text,\n  \"last_heartbeat_at\" timestamptz,\n  \"status_max30102\" bool DEFAULT false NOT NULL,\n  \"status_mlx90614\" bool DEFAULT false NOT NULL,\n  \"status_mpu6050\" bool DEFAULT false NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"devices\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"devices\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"devices\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.monitoring_sessions",
+    "label": "Create table \"monitoring_sessions\"",
+    "summary": "Creates table \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"monitoring_sessions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"monitoring_sessions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"monitoring_sessions\"",
+        "sql": "CREATE TABLE \"public\".\"monitoring_sessions\" (\n  \"device_id\" int4 NOT NULL,\n  \"ended_at\" timestamptz,\n  \"id\" SERIAL NOT NULL,\n  \"patient_id\" int4 NOT NULL,\n  \"started_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"started_by\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"monitoring_sessions\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"monitoring_sessions\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.patients",
+    "label": "Create table \"patients\"",
+    "summary": "Creates table \"patients\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "patients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"patients\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"patients\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"patients\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"patients\"",
+        "sql": "CREATE TABLE \"public\".\"patients\" (\n  \"birth_date\" date,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"medical_record_no\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"room_bed\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"patients\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"patients\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"patients\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.refresh_tokens",
+    "label": "Create table \"refresh_tokens\"",
+    "summary": "Creates table \"refresh_tokens\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "refresh_tokens"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"refresh_tokens\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_tokens\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"refresh_tokens\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"refresh_tokens\"",
+        "sql": "CREATE TABLE \"public\".\"refresh_tokens\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"expires_at\" timestamptz NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"token_hash\" text NOT NULL,\n  \"user_id\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"refresh_tokens\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_tokens\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"refresh_tokens\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.risk_assessments",
+    "label": "Create table \"risk_assessments\"",
+    "summary": "Creates table \"risk_assessments\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "risk_assessments"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"risk_assessments\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"risk_assessments\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"risk_assessments\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"risk_assessments\"",
+        "sql": "CREATE TABLE \"public\".\"risk_assessments\" (\n  \"c1_hr\" bool NOT NULL,\n  \"c2_rr\" bool NOT NULL,\n  \"c3_temp\" bool NOT NULL,\n  \"c4_spo2\" bool NOT NULL,\n  \"evaluated_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"risk_level\" text NOT NULL,\n  \"risk_score\" int4 NOT NULL,\n  \"vital_reading_id\" int4 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"risk_assessments_risk_level_check_84946b5d\" CHECK (\"risk_level\" IN ('AMAN', 'WASPADA', 'RISIKO'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"risk_assessments\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"risk_assessments\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"risk_assessments\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.users",
+    "label": "Create table \"users\"",
+    "summary": "Creates table \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"users\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"users\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"users\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"users\"",
+        "sql": "CREATE TABLE \"public\".\"users\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"email\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  \"password_hash\" text NOT NULL,\n  \"role\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"users_role_check_5b119231\" CHECK (\"role\" IN ('DOKTER', 'PERAWAT', 'APOTEKER'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"users\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"users\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"users\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.vital_readings",
+    "label": "Create table \"vital_readings\"",
+    "summary": "Creates table \"vital_readings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "vital_readings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"vital_readings\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"vital_readings\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"vital_readings\"",
+        "sql": "CREATE TABLE \"public\".\"vital_readings\" (\n  \"heart_rate\" float8,\n  \"id\" SERIAL NOT NULL,\n  \"received_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"recorded_at\" timestamptz NOT NULL,\n  \"respiratory_rate\" float8,\n  \"session_id\" int4 NOT NULL,\n  \"spo2\" float8,\n  \"temperature\" float8,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"vital_readings\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"vital_readings\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "unique.alerts.alerts_risk_assessment_id_key",
+    "label": "Add unique constraint on \"alerts\" (risk_assessment_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "alerts_risk_assessment_id_key",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"alerts_risk_assessment_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "alerts_risk_assessment_id_key",
+          "public",
+          "\"public\".\"alerts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"alerts_risk_assessment_id_key\" on \"alerts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"alerts_risk_assessment_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"alerts\" ADD CONSTRAINT \"alerts_risk_assessment_id_key\" UNIQUE (\"risk_assessment_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"alerts_risk_assessment_id_key\" exists on (risk_assessment_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "alerts_risk_assessment_id_key",
+          "public",
+          "\"public\".\"alerts\"",
+          "u",
+          "[\"risk_assessment_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.devices.devices_device_code_key",
+    "label": "Add unique constraint on \"devices\" (device_code)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "devices_device_code_key",
+        "table": "devices"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"devices_device_code_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "devices_device_code_key",
+          "public",
+          "\"public\".\"devices\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"devices_device_code_key\" on \"devices\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"devices_device_code_key\"",
+        "sql": "ALTER TABLE \"public\".\"devices\" ADD CONSTRAINT \"devices_device_code_key\" UNIQUE (\"device_code\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"devices_device_code_key\" exists on (device_code)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "devices_device_code_key",
+          "public",
+          "\"public\".\"devices\"",
+          "u",
+          "[\"device_code\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.patients.patients_medical_record_no_key",
+    "label": "Add unique constraint on \"patients\" (medical_record_no)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "patients_medical_record_no_key",
+        "table": "patients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"patients_medical_record_no_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "patients_medical_record_no_key",
+          "public",
+          "\"public\".\"patients\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"patients_medical_record_no_key\" on \"patients\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"patients_medical_record_no_key\"",
+        "sql": "ALTER TABLE \"public\".\"patients\" ADD CONSTRAINT \"patients_medical_record_no_key\" UNIQUE (\"medical_record_no\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"patients_medical_record_no_key\" exists on (medical_record_no)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "patients_medical_record_no_key",
+          "public",
+          "\"public\".\"patients\"",
+          "u",
+          "[\"medical_record_no\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.refresh_tokens.refresh_tokens_token_hash_key",
+    "label": "Add unique constraint on \"refresh_tokens\" (token_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "refresh_tokens_token_hash_key",
+        "table": "refresh_tokens"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"refresh_tokens_token_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_tokens_token_hash_key",
+          "public",
+          "\"public\".\"refresh_tokens\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"refresh_tokens_token_hash_key\" on \"refresh_tokens\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"refresh_tokens_token_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_tokens\" ADD CONSTRAINT \"refresh_tokens_token_hash_key\" UNIQUE (\"token_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"refresh_tokens_token_hash_key\" exists on (token_hash)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "refresh_tokens_token_hash_key",
+          "public",
+          "\"public\".\"refresh_tokens\"",
+          "u",
+          "[\"token_hash\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.risk_assessments.risk_assessments_vital_reading_id_key",
+    "label": "Add unique constraint on \"risk_assessments\" (vital_reading_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "risk_assessments_vital_reading_id_key",
+        "table": "risk_assessments"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"risk_assessments_vital_reading_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "risk_assessments_vital_reading_id_key",
+          "public",
+          "\"public\".\"risk_assessments\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"risk_assessments_vital_reading_id_key\" on \"risk_assessments\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"risk_assessments_vital_reading_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"risk_assessments\" ADD CONSTRAINT \"risk_assessments_vital_reading_id_key\" UNIQUE (\"vital_reading_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"risk_assessments_vital_reading_id_key\" exists on (vital_reading_id)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "risk_assessments_vital_reading_id_key",
+          "public",
+          "\"public\".\"risk_assessments\"",
+          "u",
+          "[\"vital_reading_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.users.users_email_key",
+    "label": "Add unique constraint on \"users\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "users_email_key",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"users_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "users_email_key",
+          "public",
+          "\"public\".\"users\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"users_email_key\" on \"users\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"users_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD CONSTRAINT \"users_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"users_email_key\" exists on (email)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "users_email_key",
+          "public",
+          "\"public\".\"users\"",
+          "u",
+          "[\"email\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ai_predictions.ai_predictions_session_id_idx_00ba47bf",
+    "label": "Create index \"ai_predictions_session_id_idx_00ba47bf\" on \"ai_predictions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ai_predictions_session_id_idx_00ba47bf",
+        "table": "ai_predictions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ai_predictions_session_id_idx_00ba47bf\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions_session_id_idx_00ba47bf\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"ai_predictions_session_id_idx_00ba47bf\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ai_predictions_session_id_idx_00ba47bf\"",
+        "sql": "CREATE INDEX \"ai_predictions_session_id_idx_00ba47bf\" ON \"public\".\"ai_predictions\" (\"session_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ai_predictions_session_id_idx_00ba47bf\" exists on \"ai_predictions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions_session_id_idx_00ba47bf\"",
+          "i",
+          "I",
+          "\"public\".\"ai_predictions\"",
+          "btree",
+          "[\"session_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ai_predictions.ai_predictions_session_id_window_end_idx_610237d1",
+    "label": "Create index \"ai_predictions_session_id_window_end_idx_610237d1\" on \"ai_predictions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ai_predictions_session_id_window_end_idx_610237d1",
+        "table": "ai_predictions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ai_predictions_session_id_window_end_idx_610237d1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions_session_id_window_end_idx_610237d1\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"ai_predictions_session_id_window_end_idx_610237d1\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ai_predictions_session_id_window_end_idx_610237d1\"",
+        "sql": "CREATE INDEX \"ai_predictions_session_id_window_end_idx_610237d1\" ON \"public\".\"ai_predictions\" (\"session_id\", \"window_end\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ai_predictions_session_id_window_end_idx_610237d1\" exists on \"ai_predictions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ai_predictions_session_id_window_end_idx_610237d1\"",
+          "i",
+          "I",
+          "\"public\".\"ai_predictions\"",
+          "btree",
+          "[\"session_id\",\"window_end\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.alerts.alerts_acknowledged_by_idx_de4bc076",
+    "label": "Create index \"alerts_acknowledged_by_idx_de4bc076\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "alerts_acknowledged_by_idx_de4bc076",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"alerts_acknowledged_by_idx_de4bc076\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_acknowledged_by_idx_de4bc076\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"alerts_acknowledged_by_idx_de4bc076\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"alerts_acknowledged_by_idx_de4bc076\"",
+        "sql": "CREATE INDEX \"alerts_acknowledged_by_idx_de4bc076\" ON \"public\".\"alerts\" (\"acknowledged_by\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"alerts_acknowledged_by_idx_de4bc076\" exists on \"alerts\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_acknowledged_by_idx_de4bc076\"",
+          "i",
+          "I",
+          "\"public\".\"alerts\"",
+          "btree",
+          "[\"acknowledged_by\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.alerts.alerts_session_id_idx_00ba47bf",
+    "label": "Create index \"alerts_session_id_idx_00ba47bf\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "alerts_session_id_idx_00ba47bf",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"alerts_session_id_idx_00ba47bf\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_session_id_idx_00ba47bf\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"alerts_session_id_idx_00ba47bf\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"alerts_session_id_idx_00ba47bf\"",
+        "sql": "CREATE INDEX \"alerts_session_id_idx_00ba47bf\" ON \"public\".\"alerts\" (\"session_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"alerts_session_id_idx_00ba47bf\" exists on \"alerts\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_session_id_idx_00ba47bf\"",
+          "i",
+          "I",
+          "\"public\".\"alerts\"",
+          "btree",
+          "[\"session_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.alerts.alerts_session_id_status_idx_f571d3b1",
+    "label": "Create index \"alerts_session_id_status_idx_f571d3b1\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "alerts_session_id_status_idx_f571d3b1",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"alerts_session_id_status_idx_f571d3b1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_session_id_status_idx_f571d3b1\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"alerts_session_id_status_idx_f571d3b1\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"alerts_session_id_status_idx_f571d3b1\"",
+        "sql": "CREATE INDEX \"alerts_session_id_status_idx_f571d3b1\" ON \"public\".\"alerts\" (\"session_id\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"alerts_session_id_status_idx_f571d3b1\" exists on \"alerts\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"alerts_session_id_status_idx_f571d3b1\"",
+          "i",
+          "I",
+          "\"public\".\"alerts\"",
+          "btree",
+          "[\"session_id\",\"status\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.monitoring_sessions.monitoring_sessions_device_id_idx_8f329912",
+    "label": "Create index \"monitoring_sessions_device_id_idx_8f329912\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "monitoring_sessions_device_id_idx_8f329912",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"monitoring_sessions_device_id_idx_8f329912\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_device_id_idx_8f329912\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"monitoring_sessions_device_id_idx_8f329912\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"monitoring_sessions_device_id_idx_8f329912\"",
+        "sql": "CREATE INDEX \"monitoring_sessions_device_id_idx_8f329912\" ON \"public\".\"monitoring_sessions\" (\"device_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"monitoring_sessions_device_id_idx_8f329912\" exists on \"monitoring_sessions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_device_id_idx_8f329912\"",
+          "i",
+          "I",
+          "\"public\".\"monitoring_sessions\"",
+          "btree",
+          "[\"device_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.monitoring_sessions.monitoring_sessions_patient_id_idx_2f641dda",
+    "label": "Create index \"monitoring_sessions_patient_id_idx_2f641dda\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "monitoring_sessions_patient_id_idx_2f641dda",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"monitoring_sessions_patient_id_idx_2f641dda\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_patient_id_idx_2f641dda\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"monitoring_sessions_patient_id_idx_2f641dda\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"monitoring_sessions_patient_id_idx_2f641dda\"",
+        "sql": "CREATE INDEX \"monitoring_sessions_patient_id_idx_2f641dda\" ON \"public\".\"monitoring_sessions\" (\"patient_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"monitoring_sessions_patient_id_idx_2f641dda\" exists on \"monitoring_sessions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_patient_id_idx_2f641dda\"",
+          "i",
+          "I",
+          "\"public\".\"monitoring_sessions\"",
+          "btree",
+          "[\"patient_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.monitoring_sessions.monitoring_sessions_started_by_idx_dc9966c0",
+    "label": "Create index \"monitoring_sessions_started_by_idx_dc9966c0\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "monitoring_sessions_started_by_idx_dc9966c0",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"monitoring_sessions_started_by_idx_dc9966c0\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_started_by_idx_dc9966c0\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"monitoring_sessions_started_by_idx_dc9966c0\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"monitoring_sessions_started_by_idx_dc9966c0\"",
+        "sql": "CREATE INDEX \"monitoring_sessions_started_by_idx_dc9966c0\" ON \"public\".\"monitoring_sessions\" (\"started_by\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"monitoring_sessions_started_by_idx_dc9966c0\" exists on \"monitoring_sessions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"monitoring_sessions_started_by_idx_dc9966c0\"",
+          "i",
+          "I",
+          "\"public\".\"monitoring_sessions\"",
+          "btree",
+          "[\"started_by\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.monitoring_sessions.one_active_session_per_device_3bd1b17c",
+    "label": "Create index \"one_active_session_per_device_3bd1b17c\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "one_active_session_per_device_3bd1b17c",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"one_active_session_per_device_3bd1b17c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"one_active_session_per_device_3bd1b17c\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"one_active_session_per_device_3bd1b17c\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"one_active_session_per_device_3bd1b17c\"",
+        "sql": "CREATE UNIQUE INDEX \"one_active_session_per_device_3bd1b17c\" ON \"public\".\"monitoring_sessions\" (\"device_id\") WHERE ((ended_at IS NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"one_active_session_per_device_3bd1b17c\" exists on \"monitoring_sessions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"one_active_session_per_device_3bd1b17c\"",
+          "i",
+          "I",
+          "\"public\".\"monitoring_sessions\"",
+          "btree",
+          "[\"device_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.monitoring_sessions.one_active_session_per_patient_7d9b9f4c",
+    "label": "Create index \"one_active_session_per_patient_7d9b9f4c\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "one_active_session_per_patient_7d9b9f4c",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"one_active_session_per_patient_7d9b9f4c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"one_active_session_per_patient_7d9b9f4c\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"one_active_session_per_patient_7d9b9f4c\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"one_active_session_per_patient_7d9b9f4c\"",
+        "sql": "CREATE UNIQUE INDEX \"one_active_session_per_patient_7d9b9f4c\" ON \"public\".\"monitoring_sessions\" (\"patient_id\") WHERE ((ended_at IS NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"one_active_session_per_patient_7d9b9f4c\" exists on \"monitoring_sessions\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"one_active_session_per_patient_7d9b9f4c\"",
+          "i",
+          "I",
+          "\"public\".\"monitoring_sessions\"",
+          "btree",
+          "[\"patient_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.refresh_tokens.refresh_tokens_user_id_idx_6c952402",
+    "label": "Create index \"refresh_tokens_user_id_idx_6c952402\" on \"refresh_tokens\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "refresh_tokens_user_id_idx_6c952402",
+        "table": "refresh_tokens"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"refresh_tokens_user_id_idx_6c952402\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_tokens_user_id_idx_6c952402\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"refresh_tokens_user_id_idx_6c952402\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"refresh_tokens_user_id_idx_6c952402\"",
+        "sql": "CREATE INDEX \"refresh_tokens_user_id_idx_6c952402\" ON \"public\".\"refresh_tokens\" (\"user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"refresh_tokens_user_id_idx_6c952402\" exists on \"refresh_tokens\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"refresh_tokens_user_id_idx_6c952402\"",
+          "i",
+          "I",
+          "\"public\".\"refresh_tokens\"",
+          "btree",
+          "[\"user_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.vital_readings.vital_readings_session_id_idx_00ba47bf",
+    "label": "Create index \"vital_readings_session_id_idx_00ba47bf\" on \"vital_readings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "vital_readings_session_id_idx_00ba47bf",
+        "table": "vital_readings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"vital_readings_session_id_idx_00ba47bf\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings_session_id_idx_00ba47bf\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"vital_readings_session_id_idx_00ba47bf\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"vital_readings_session_id_idx_00ba47bf\"",
+        "sql": "CREATE INDEX \"vital_readings_session_id_idx_00ba47bf\" ON \"public\".\"vital_readings\" (\"session_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"vital_readings_session_id_idx_00ba47bf\" exists on \"vital_readings\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings_session_id_idx_00ba47bf\"",
+          "i",
+          "I",
+          "\"public\".\"vital_readings\"",
+          "btree",
+          "[\"session_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.vital_readings.vital_readings_session_id_recorded_at_idx_fd8ea955",
+    "label": "Create index \"vital_readings_session_id_recorded_at_idx_fd8ea955\" on \"vital_readings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "vital_readings_session_id_recorded_at_idx_fd8ea955",
+        "table": "vital_readings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"vital_readings_session_id_recorded_at_idx_fd8ea955\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings_session_id_recorded_at_idx_fd8ea955\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"vital_readings_session_id_recorded_at_idx_fd8ea955\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"vital_readings_session_id_recorded_at_idx_fd8ea955\"",
+        "sql": "CREATE INDEX \"vital_readings_session_id_recorded_at_idx_fd8ea955\" ON \"public\".\"vital_readings\" (\"session_id\", \"recorded_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"vital_readings_session_id_recorded_at_idx_fd8ea955\" exists on \"vital_readings\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"vital_readings_session_id_recorded_at_idx_fd8ea955\"",
+          "i",
+          "I",
+          "\"public\".\"vital_readings\"",
+          "btree",
+          "[\"session_id\",\"recorded_at\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ai_predictions.ai_predictions_session_id_fkey",
+    "label": "Add foreign key \"ai_predictions_session_id_fkey\" on \"ai_predictions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ai_predictions_session_id_fkey",
+        "table": "ai_predictions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ai_predictions_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ai_predictions_session_id_fkey",
+          "public",
+          "\"public\".\"ai_predictions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"ai_predictions_session_id_fkey\" on \"ai_predictions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ai_predictions_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ai_predictions\"\nADD CONSTRAINT \"ai_predictions_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"monitoring_sessions\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ai_predictions_session_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ai_predictions_session_id_fkey",
+          "public",
+          "\"public\".\"ai_predictions\"",
+          "f",
+          "[\"session_id\"]",
+          "\"public\".\"monitoring_sessions\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.alerts.alerts_risk_assessment_id_fkey",
+    "label": "Add foreign key \"alerts_risk_assessment_id_fkey\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "alerts_risk_assessment_id_fkey",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"alerts_risk_assessment_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "alerts_risk_assessment_id_fkey",
+          "public",
+          "\"public\".\"alerts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"alerts_risk_assessment_id_fkey\" on \"alerts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"alerts_risk_assessment_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"alerts\"\nADD CONSTRAINT \"alerts_risk_assessment_id_fkey\"\nFOREIGN KEY (\"risk_assessment_id\")\nREFERENCES \"public\".\"risk_assessments\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"alerts_risk_assessment_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "alerts_risk_assessment_id_fkey",
+          "public",
+          "\"public\".\"alerts\"",
+          "f",
+          "[\"risk_assessment_id\"]",
+          "\"public\".\"risk_assessments\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.alerts.alerts_session_id_fkey",
+    "label": "Add foreign key \"alerts_session_id_fkey\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "alerts_session_id_fkey",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"alerts_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "alerts_session_id_fkey",
+          "public",
+          "\"public\".\"alerts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"alerts_session_id_fkey\" on \"alerts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"alerts_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"alerts\"\nADD CONSTRAINT \"alerts_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"monitoring_sessions\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"alerts_session_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "alerts_session_id_fkey",
+          "public",
+          "\"public\".\"alerts\"",
+          "f",
+          "[\"session_id\"]",
+          "\"public\".\"monitoring_sessions\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.alerts.alerts_acknowledged_by_fkey",
+    "label": "Add foreign key \"alerts_acknowledged_by_fkey\" on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "alerts_acknowledged_by_fkey",
+        "table": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"alerts_acknowledged_by_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "alerts_acknowledged_by_fkey",
+          "public",
+          "\"public\".\"alerts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"alerts_acknowledged_by_fkey\" on \"alerts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"alerts_acknowledged_by_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"alerts\"\nADD CONSTRAINT \"alerts_acknowledged_by_fkey\"\nFOREIGN KEY (\"acknowledged_by\")\nREFERENCES \"public\".\"users\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"alerts_acknowledged_by_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "alerts_acknowledged_by_fkey",
+          "public",
+          "\"public\".\"alerts\"",
+          "f",
+          "[\"acknowledged_by\"]",
+          "\"public\".\"users\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.monitoring_sessions.monitoring_sessions_patient_id_fkey",
+    "label": "Add foreign key \"monitoring_sessions_patient_id_fkey\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "monitoring_sessions_patient_id_fkey",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"monitoring_sessions_patient_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "monitoring_sessions_patient_id_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"monitoring_sessions_patient_id_fkey\" on \"monitoring_sessions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"monitoring_sessions_patient_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"monitoring_sessions\"\nADD CONSTRAINT \"monitoring_sessions_patient_id_fkey\"\nFOREIGN KEY (\"patient_id\")\nREFERENCES \"public\".\"patients\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"monitoring_sessions_patient_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "monitoring_sessions_patient_id_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\"",
+          "f",
+          "[\"patient_id\"]",
+          "\"public\".\"patients\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.monitoring_sessions.monitoring_sessions_device_id_fkey",
+    "label": "Add foreign key \"monitoring_sessions_device_id_fkey\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "monitoring_sessions_device_id_fkey",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"monitoring_sessions_device_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "monitoring_sessions_device_id_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"monitoring_sessions_device_id_fkey\" on \"monitoring_sessions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"monitoring_sessions_device_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"monitoring_sessions\"\nADD CONSTRAINT \"monitoring_sessions_device_id_fkey\"\nFOREIGN KEY (\"device_id\")\nREFERENCES \"public\".\"devices\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"monitoring_sessions_device_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "monitoring_sessions_device_id_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\"",
+          "f",
+          "[\"device_id\"]",
+          "\"public\".\"devices\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.monitoring_sessions.monitoring_sessions_started_by_fkey",
+    "label": "Add foreign key \"monitoring_sessions_started_by_fkey\" on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "monitoring_sessions_started_by_fkey",
+        "table": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"monitoring_sessions_started_by_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "monitoring_sessions_started_by_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"monitoring_sessions_started_by_fkey\" on \"monitoring_sessions\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"monitoring_sessions_started_by_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"monitoring_sessions\"\nADD CONSTRAINT \"monitoring_sessions_started_by_fkey\"\nFOREIGN KEY (\"started_by\")\nREFERENCES \"public\".\"users\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"monitoring_sessions_started_by_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "monitoring_sessions_started_by_fkey",
+          "public",
+          "\"public\".\"monitoring_sessions\"",
+          "f",
+          "[\"started_by\"]",
+          "\"public\".\"users\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.refresh_tokens.refresh_tokens_user_id_fkey",
+    "label": "Add foreign key \"refresh_tokens_user_id_fkey\" on \"refresh_tokens\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "refresh_tokens_user_id_fkey",
+        "table": "refresh_tokens"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"refresh_tokens_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "refresh_tokens_user_id_fkey",
+          "public",
+          "\"public\".\"refresh_tokens\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"refresh_tokens_user_id_fkey\" on \"refresh_tokens\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"refresh_tokens_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_tokens\"\nADD CONSTRAINT \"refresh_tokens_user_id_fkey\"\nFOREIGN KEY (\"user_id\")\nREFERENCES \"public\".\"users\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"refresh_tokens_user_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "refresh_tokens_user_id_fkey",
+          "public",
+          "\"public\".\"refresh_tokens\"",
+          "f",
+          "[\"user_id\"]",
+          "\"public\".\"users\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.risk_assessments.risk_assessments_vital_reading_id_fkey",
+    "label": "Add foreign key \"risk_assessments_vital_reading_id_fkey\" on \"risk_assessments\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "risk_assessments_vital_reading_id_fkey",
+        "table": "risk_assessments"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"risk_assessments_vital_reading_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "risk_assessments_vital_reading_id_fkey",
+          "public",
+          "\"public\".\"risk_assessments\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"risk_assessments_vital_reading_id_fkey\" on \"risk_assessments\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"risk_assessments_vital_reading_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"risk_assessments\"\nADD CONSTRAINT \"risk_assessments_vital_reading_id_fkey\"\nFOREIGN KEY (\"vital_reading_id\")\nREFERENCES \"public\".\"vital_readings\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"risk_assessments_vital_reading_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "risk_assessments_vital_reading_id_fkey",
+          "public",
+          "\"public\".\"risk_assessments\"",
+          "f",
+          "[\"vital_reading_id\"]",
+          "\"public\".\"vital_readings\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.vital_readings.vital_readings_session_id_fkey",
+    "label": "Add foreign key \"vital_readings_session_id_fkey\" on \"vital_readings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "vital_readings_session_id_fkey",
+        "table": "vital_readings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"vital_readings_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "vital_readings_session_id_fkey",
+          "public",
+          "\"public\".\"vital_readings\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"vital_readings_session_id_fkey\" on \"vital_readings\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"vital_readings_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"vital_readings\"\nADD CONSTRAINT \"vital_readings_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"monitoring_sessions\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"vital_readings_session_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "vital_readings_session_id_fkey",
+          "public",
+          "\"public\".\"vital_readings\"",
+          "f",
+          "[\"session_id\"]",
+          "\"public\".\"monitoring_sessions\"",
+          "[\"id\"]",
+          "a",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.ai_predictions",
+    "label": "Enable row-level security on \"ai_predictions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "ai_predictions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"ai_predictions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "ai_predictions"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"ai_predictions\"",
+        "sql": "ALTER TABLE \"public\".\"ai_predictions\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"ai_predictions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "ai_predictions"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.alerts",
+    "label": "Enable row-level security on \"alerts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "alerts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"alerts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "alerts"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"alerts\"",
+        "sql": "ALTER TABLE \"public\".\"alerts\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"alerts\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "alerts"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.devices",
+    "label": "Enable row-level security on \"devices\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "devices"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"devices\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "devices"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"devices\"",
+        "sql": "ALTER TABLE \"public\".\"devices\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"devices\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "devices"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.monitoring_sessions",
+    "label": "Enable row-level security on \"monitoring_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "monitoring_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"monitoring_sessions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "monitoring_sessions"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"monitoring_sessions\"",
+        "sql": "ALTER TABLE \"public\".\"monitoring_sessions\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"monitoring_sessions\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "monitoring_sessions"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.patients",
+    "label": "Enable row-level security on \"patients\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "patients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"patients\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "patients"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"patients\"",
+        "sql": "ALTER TABLE \"public\".\"patients\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"patients\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "patients"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.refresh_tokens",
+    "label": "Enable row-level security on \"refresh_tokens\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "refresh_tokens"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"refresh_tokens\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_tokens"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"refresh_tokens\"",
+        "sql": "ALTER TABLE \"public\".\"refresh_tokens\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"refresh_tokens\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "refresh_tokens"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.risk_assessments",
+    "label": "Enable row-level security on \"risk_assessments\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "risk_assessments"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"risk_assessments\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "risk_assessments"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"risk_assessments\"",
+        "sql": "ALTER TABLE \"public\".\"risk_assessments\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"risk_assessments\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "risk_assessments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.users",
+    "label": "Enable row-level security on \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"users\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "users"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"users\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"users\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "users"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rowLevelSecurity.public.vital_readings",
+    "label": "Enable row-level security on \"vital_readings\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "rowLevelSecurity",
+        "name": "vital_readings"
+      }
+    },
+    "precheck": [
+      {
+        "description": "check RLS is not already enabled on \"vital_readings\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND NOT (\"c\".\"relrowsecurity\"))) AS \"result\"",
+        "params": [
+          "public",
+          "vital_readings"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "enable row-level security on \"vital_readings\"",
+        "sql": "ALTER TABLE \"public\".\"vital_readings\" ENABLE ROW LEVEL SECURITY"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify row-level security is enabled on \"vital_readings\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"c\".\"relrowsecurity\")) AS \"result\"",
+        "params": [
+          "public",
+          "vital_readings"
+        ]
+      }
+    ]
+  }
+]
