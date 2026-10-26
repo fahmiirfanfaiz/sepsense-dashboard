@@ -9,6 +9,7 @@ import {
   notFoundHandler,
 } from "./middlewares/error.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 import { AppError } from "./utils/AppError.js";
 
 export function createApp() {
@@ -61,6 +62,7 @@ export function createApp() {
   });
 
   app.use("/", authRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
