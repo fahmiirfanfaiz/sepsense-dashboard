@@ -6,39 +6,58 @@ import {
   ShieldAlert,
   X,
   Bell,
-  BellOff,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const RISK_LEVEL_LABELS = {
+  0: "Stabil",
+  1: "Perlu Diamati",
+  2: "Waspada",
+  3: "Perlu Perhatian",
+  4: "Mohon Diperiksa",
+};
+
 /**
  * RISK_SCORE → severity
- * 0  → none (tidak tampil)
- * 1  → warning (kuning)
- * 2  → danger (oranye)
- * 3+ → critical / sepsis (merah)
+ * 0   → none (Stabil - tidak memicu toast alert)
+ * 1   → watch (Perlu Diamati)
+ * 2   → warning (Waspada)
+ * 3   → high (Perlu Perhatian)
+ * 4+  → critical (Mohon Diperiksa)
  */
 function getSeverity(riskScore) {
-  if (riskScore >= 3) return "critical";
-  if (riskScore === 2) return "danger";
-  if (riskScore === 1) return "warning";
+  if (riskScore >= 4) return "critical";
+  if (riskScore === 3) return "high";
+  if (riskScore === 2) return "warning";
+  if (riskScore === 1) return "watch";
   return "none";
 }
 
 const SEVERITY_CONFIG = {
+  watch: {
+    bg: "bg-blue-50 border-blue-300 dark:bg-blue-950/40 dark:border-blue-700",
+    icon: Eye,
+    iconColor: "text-blue-500",
+    title: "🔍 Perlu Diamati",
+    titleColor: "text-blue-700 dark:text-blue-400",
+    bodyColor: "text-blue-800 dark:text-blue-300",
+    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  },
   warning: {
     bg: "bg-amber-50 border-amber-300 dark:bg-amber-950/40 dark:border-amber-700",
     icon: Bell,
     iconColor: "text-amber-500",
-    title: "⚠️ Waspada Sepsis",
+    title: "⚠️ Waspada",
     titleColor: "text-amber-700 dark:text-amber-400",
     bodyColor: "text-amber-800 dark:text-amber-300",
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
   },
-  danger: {
+  high: {
     bg: "bg-orange-50 border-orange-300 dark:bg-orange-950/40 dark:border-orange-700",
     icon: AlertTriangle,
     iconColor: "text-orange-500",
-    title: "🚨 Risiko Tinggi Sepsis",
+    title: "🚨 Perlu Perhatian",
     titleColor: "text-orange-700 dark:text-orange-400",
     bodyColor: "text-orange-800 dark:text-orange-300",
     badge: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
@@ -47,7 +66,7 @@ const SEVERITY_CONFIG = {
     bg: "bg-red-50 border-red-400 dark:bg-red-950/40 dark:border-red-700",
     icon: ShieldAlert,
     iconColor: "text-red-500",
-    title: "🔴 TERINDIKASI SEPSIS",
+    title: "🔴 Mohon Diperiksa!",
     titleColor: "text-red-700 dark:text-red-400",
     bodyColor: "text-red-800 dark:text-red-300",
     badge: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
@@ -71,9 +90,9 @@ function AlertToast({ alert, onDismiss }) {
       requestAnimationFrame(() => setVisible(true));
     });
 
-    // Auto-dismiss after 12 s for warning, 20 s for danger, never for critical
+    // Auto-dismiss: watch 10s, warning 15s, high 20s, critical stays until closed
     if (severity !== "critical") {
-      const timeout = severity === "warning" ? 12_000 : 20_000;
+      const timeout = severity === "watch" ? 10_000 : severity === "warning" ? 15_000 : 20_000;
       timerRef.current = setTimeout(() => handleDismiss(), timeout);
     }
 
@@ -86,13 +105,14 @@ function AlertToast({ alert, onDismiss }) {
   }
 
   const Icon = config.icon;
+  const statusText = RISK_LEVEL_LABELS[alert.riskScore] || "Risiko Terdeteksi";
 
   return (
     <div
       role="alert"
       aria-live="assertive"
       className={cn(
-        "flex items-start gap-3 w-[340px] rounded-xl border px-4 py-3 shadow-lg transition-all duration-300",
+        "flex items-start gap-3 w-[360px] rounded-xl border px-4 py-3 shadow-lg transition-all duration-300",
         config.bg,
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
       )}
@@ -118,7 +138,7 @@ function AlertToast({ alert, onDismiss }) {
           {alert.patientName && " • "}
           {alert.label} &nbsp;
           <span className={cn("inline-block px-1.5 py-0.5 rounded text-[11px] font-bold", config.badge)}>
-            Risk Score: {alert.riskScore}
+            Skor {alert.riskScore}: {statusText}
           </span>
         </p>
         {alert.roomBed && (

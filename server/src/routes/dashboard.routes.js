@@ -21,8 +21,32 @@ router.get("/beds", asyncHandler(dashboardController.listBeds));
 router.get("/device/:deviceId", asyncHandler(dashboardController.getDeviceDetail));
 
 /**
+ * GET /api/dashboard/device/:deviceId/patient
+ * Melihat identitas pasien saat ini.
+ */
+router.get("/device/:deviceId/patient", asyncHandler(dashboardController.getPatient));
+
+/**
+ * POST /api/dashboard/device/:deviceId/patient
+ * Tambahkan atau buat identitas pasien.
+ */
+router.post("/device/:deviceId/patient", asyncHandler(dashboardController.savePatient));
+
+/**
+ * PATCH /api/dashboard/device/:deviceId/patient
+ * Perbarui identitas pasien lengkap.
+ */
+router.patch("/device/:deviceId/patient", asyncHandler(dashboardController.savePatient));
+
+/**
+ * DELETE /api/dashboard/device/:deviceId/patient
+ * Hapus / reset identitas pasien.
+ */
+router.delete("/device/:deviceId/patient", asyncHandler(dashboardController.deletePatient));
+
+/**
  * PATCH /api/dashboard/device/:deviceId/patient-name
- * Perbarui nama pasien secara manual.
+ * Perbarui nama pasien secara manual (backward compatibility).
  */
 router.patch(
   "/device/:deviceId/patient-name",

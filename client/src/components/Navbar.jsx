@@ -14,11 +14,14 @@ import {
 import { cn } from "@/lib/utils";
 
 function useTime() {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(null);
+
   useEffect(() => {
+    setTime(new Date());
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
   return time;
 }
 
@@ -58,21 +61,28 @@ function useDarkMode() {
 export default function Navbar({ mode = "overview", beds = [], device = null, location = "RSUP Dr. Kariadi" }) {
   const time = useTime();
   const { dark, toggle } = useDarkMode();
+  const [mounted, setMounted] = useState(false);
 
-  const connectedCount = beds.filter((b) => b.isConnected).length;
-  const totalCount = beds.length;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const timeStr = time.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const dateStr = time.toLocaleDateString("id-ID", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const timeStr = time
+    ? time.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "--:--:--";
+
+  const dateStr = time
+    ? time.toLocaleDateString("id-ID", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <header className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-5 border-b border-border/60 bg-background/90 backdrop-blur-md shadow-sm">
@@ -102,17 +112,22 @@ export default function Navbar({ mode = "overview", beds = [], device = null, lo
             <span className="text-xs text-muted-foreground italic">Tidak ada perangkat terdaftar</span>
           )
         ) : device ? (
-          <DeviceDetailStatus device={device} />
+          <DeviceDetailStatus device={device} mounted={mounted} />
         ) : null}
       </div>
 
       {/* Right: Clock + Dark mode toggle */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="text-right hidden sm:block">
-          <p className="text-xs font-semibold font-inter text-foreground leading-tight tabular-nums">
-            {timeStr}
+        <div className="text-right hidden sm:block" suppressHydrationWarning>
+          <p
+            suppressHydrationWarning
+            className="text-xs font-semibold font-inter text-foreground leading-tight tabular-nums"
+          >
+            {mounted ? timeStr : "--:--:--"}
           </p>
-          <p className="text-[10px] text-muted-foreground leading-tight">{dateStr}</p>
+          <p suppressHydrationWarning className="text-[10px] text-muted-foreground leading-tight">
+            {mounted ? dateStr : "—"}
+          </p>
         </div>
 
         <button
@@ -148,8 +163,8 @@ function DeviceChip({ bed }) {
   );
 }
 
-function DeviceDetailStatus({ device }) {
-  const sinceMs = device.lastHeartbeatAt
+function DeviceDetailStatus({ device, mounted = true }) {
+  const sinceMs = device.lastHeartbeatAt && mounted
     ? Date.now() - new Date(device.lastHeartbeatAt).getTime()
     : null;
   const sinceStr = sinceMs !== null
@@ -181,7 +196,9 @@ function DeviceDetailStatus({ device }) {
           <WifiOff className="w-3.5 h-3.5" />
         )}
         <span>{device.isConnected ? "Terhubung" : "Tidak Terhubung"}</span>
-        <span className="text-[10px] opacity-70">{sinceStr}</span>
+        <span suppressHydrationWarning className="text-[10px] opacity-70">
+          {mounted ? sinceStr : "—"}
+        </span>
       </div>
 
       {/* Sensor Status Chips */}
@@ -189,7 +206,7 @@ function DeviceDetailStatus({ device }) {
         <div
           key={s.label}
           className={cn(
-            "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border",
+            "flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono border",
             s.ok
               ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400"
               : "bg-zinc-100 border-zinc-200 text-zinc-400 dark:bg-zinc-800/50 dark:border-zinc-700",

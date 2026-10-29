@@ -1,0 +1,30 @@
+{
+  "model_version": "xgb-v2",
+  "algorithm": "XGBoost + Isotonic Calibration",
+  "dataset_stats": {
+    "total_rows": 546122,
+    "total_patients": 14057,
+    "sepsis_positive_rate": 0.02169844833205767
+  },
+  "model_performance": {
+    "auroc_row": 0.6641647016914788,
+    "auprc_row": 0.04808415372268849,
+    "auroc_patient": 0.6939282883948886,
+    "optimal_threshold_prob": 0.03361809045226131,
+    "optimal_threshold_raw": 0.5706619024276733,
+    "recall_at_optimal_threshold": 0.3333333333333333,
+    "precision_at_optimal_threshold": 0.0516097000104526,
+    "specificity_at_optimal_threshold": 0.8641403629611883,
+    "f2_score": 0.1593564420345985,
+    "alert_rate": 0.1401445098347988
+  },
+  "baseline_sirs_ge2": {
+    "auroc_row": 0.6101303711006603,
+    "auprc_row": 0.03134444202056545,
+    "auroc_patient": 0.6165501852406654,
+    "recall": 0.4420253164556962,
+    "precision": 0.03437594340241774,
+    "f2_score": 0.13109814089921612,
+    "alert_rate": 0.2790109169745954
+  }
+}

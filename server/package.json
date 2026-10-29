@@ -7,7 +7,12 @@
     "test": "node --test",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "contract:emit": "prisma contract emit"
+    "contract:emit": "prisma contract emit",
+    "simulate": "node scripts/simulate.js",
+    "simulate:sepsis": "node scripts/simulate.js --mode sepsis",
+    "simulate:normal": "node scripts/simulate.js --mode normal",
+    "simulate:warning": "node scripts/simulate.js --mode warning",
+    "simulate:stream": "node scripts/simulate.js --mode sepsis --stream --interval 3"
   },
   "keywords": [],
   "author": "",

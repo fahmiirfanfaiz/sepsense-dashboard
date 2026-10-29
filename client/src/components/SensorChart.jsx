@@ -100,6 +100,15 @@ const CHART_CONFIG = {
   },
 };
 
+// Pemetaan status gerakan hardware ke teks bahasa Indonesia
+const BPM_MOTION_STATUS_MAP = {
+  TIDAK_MENEMPEL: { text: "Tidak Menempel", color: "text-amber-500", badge: "bg-amber-100 dark:bg-amber-950/40 text-amber-600 border-amber-200" },
+  SINYAL_JENUH:   { text: "Sinyal Jenuh",   color: "text-rose-500",  badge: "bg-rose-100 dark:bg-rose-950/40 text-rose-600 border-rose-200" },
+  GERAK:          { text: "Gerak",          color: "text-orange-500", badge: "bg-orange-100 dark:bg-orange-950/40 text-orange-600 border-orange-200" },
+  MENUNGGU:       { text: "Menunggu",       color: "text-blue-500",   badge: "bg-blue-100 dark:bg-blue-950/40 text-blue-600 border-blue-200" },
+  SINYAL_LEMAH:   { text: "Sinyal Lemah",   color: "text-amber-600", badge: "bg-amber-100 dark:bg-amber-950/40 text-amber-700 border-amber-300" },
+};
+
 /**
  * SensorChart — visualisasi time-series data sensor vital sign menggunakan Chart.js
  *
@@ -107,8 +116,18 @@ const CHART_CONFIG = {
  *  - metric: "heartRate" | "respiratoryRate" | "temperature" | "spo2"
  *  - readings: Array<VitalReading>  (oldest → newest)
  *  - latestValue: number | null
+ *  - bpmStatus: string | null (Khusus Heart Rate: TIDAK_MENEMPEL, SINYAL_JENUH, GERAK, MENUNGGU, SINYAL_LEMAH, BAIK)
+ *  - medianValue: number | null (Nilai median 3 menit dari buffer 18 sampel)
+ *  - stabilityScore: number | null (0-100%)
  */
-export default function SensorChart({ metric, readings = [], latestValue }) {
+export default function SensorChart({
+  metric,
+  readings = [],
+  latestValue,
+  bpmStatus = "BAIK",
+  medianValue = null,
+  stabilityScore = null,
+}) {
   const chartRef = useRef(null);
   const cfg = CHART_CONFIG[metric];
 
@@ -119,6 +138,15 @@ export default function SensorChart({ metric, readings = [], latestValue }) {
   );
 
   const values = readings.map((r) => r[metric] ?? null);
+
+  // Periksa apakah heart rate memiliki status gerakan non-BAIK
+  const upperBpmStatus = bpmStatus ? String(bpmStatus).trim().toUpperCase() : "BAIK";
+  const hasMotionIssue =
+    metric === "heartRate" &&
+    upperBpmStatus !== "BAIK" &&
+    BPM_MOTION_STATUS_MAP[upperBpmStatus];
+
+  const motionInfo = hasMotionIssue ? BPM_MOTION_STATUS_MAP[upperBpmStatus] : null;
 
   const isNormal =
     latestValue !== null &&
@@ -233,16 +261,53 @@ export default function SensorChart({ metric, readings = [], latestValue }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-inter text-muted-foreground">{cfg.label}</p>
-          <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className={cn("text-2xl font-bold font-poppins", statusColor)}>
-              {latestValue !== null && latestValue !== undefined
-                ? Number(latestValue).toFixed(1)
-                : "—"}
-            </span>
-            <span className="text-sm text-muted-foreground font-inter">{cfg.unit}</span>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-inter text-muted-foreground">{cfg.label}</p>
+            {stabilityScore !== null && stabilityScore !== undefined && (
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border",
+                  stabilityScore >= 70
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border-emerald-200 dark:border-emerald-800"
+                    : "bg-amber-50 dark:bg-amber-950/40 text-amber-600 border-amber-200 dark:border-amber-800"
+                )}
+                title={`Kestabilan sinyal 3 menit: ${stabilityScore}%`}
+              >
+                Stabilitas: {stabilityScore}%
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-baseline gap-2 mt-0.5">
+            {motionInfo ? (
+              /* Jika status gerakan bukan BAIK, tampilkan status gerakan sesuai permintaan */
+              <div className="flex items-center gap-2 py-0.5">
+                <span className={cn("text-xl font-bold font-poppins tracking-tight", motionInfo.color)}>
+                  {motionInfo.text}
+                </span>
+                <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold border", motionInfo.badge)}>
+                  Status Sensor
+                </span>
+              </div>
+            ) : (
+              /* Jika status gerakan BAIK, tampilkan angka BPM */
+              <>
+                <span className={cn("text-2xl font-bold font-poppins", statusColor)}>
+                  {latestValue !== null && latestValue !== undefined
+                    ? Number(latestValue).toFixed(1)
+                    : "—"}
+                </span>
+                <span className="text-sm text-muted-foreground font-inter">{cfg.unit}</span>
+                {medianValue !== null && medianValue !== undefined && (
+                  <span className="text-xs text-muted-foreground font-inter ml-1">
+                    (Median: <strong className="text-foreground">{medianValue}</strong>)
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
+
         <div className="text-right">
           <p className="text-[10px] text-muted-foreground font-inter">Normal</p>
           <p className="text-xs font-medium font-inter text-foreground">

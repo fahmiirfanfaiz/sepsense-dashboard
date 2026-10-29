@@ -99,13 +99,45 @@ export const dashboardRepository = {
   },
 
   /**
-   * Buat pasien baru (nama saja, untuk entri manual) dan mulai sesi baru.
+   * Update identitas pasien lengkap.
    */
-  async createPatient({ medicalRecordNo, name, roomBed }) {
+  async updatePatient(patientId, { name, medicalRecordNo, roomBed, birthDate }) {
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (medicalRecordNo !== undefined) updateData.medicalRecordNo = medicalRecordNo;
+    if (roomBed !== undefined) updateData.roomBed = roomBed;
+    if (birthDate !== undefined) updateData.birthDate = birthDate;
+    return db.orm.public.Patient.where({ id: Number(patientId) }).update(updateData);
+  },
+
+  /**
+   * Cari data pasien berdasarkan ID.
+   */
+  async findPatientById(patientId) {
+    return db.orm.public.Patient.where({ id: Number(patientId) }).first();
+  },
+
+  /**
+   * Buat pasien baru dan mulai sesi baru jika diperlukan.
+   */
+  async createPatient({ medicalRecordNo, name, roomBed, birthDate }) {
     return db.orm.public.Patient.create({
       medicalRecordNo,
       name,
       roomBed: roomBed ?? null,
+      birthDate: birthDate ?? null,
+    });
+  },
+
+  /**
+   * Reset / Hapus identitas pasien dari sesi.
+   */
+  async deletePatient(patientId) {
+    // Setel ulang nama pasien menjadi default atau unassigned
+    return db.orm.public.Patient.where({ id: Number(patientId) }).update({
+      name: "Belum Diisi",
+      medicalRecordNo: `RM-${Date.now().toString().slice(-6)}`,
+      roomBed: null,
     });
   },
 };

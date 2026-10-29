@@ -40,8 +40,8 @@ export function createApp() {
         );
       },
       credentials: true,
-      methods: ["GET", "POST", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
       maxAge: 86400,
     }),
   );
@@ -59,6 +59,18 @@ export function createApp() {
       status: "ok",
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // Endpoint demo simulation (memicu alert dan evaluasi AI secara instan tanpa perlu sensor fisik)
+  app.post("/api/simulate-telemetry", async (req, res, next) => {
+    try {
+      const { processTelemetry } = await import("./handlers/mqttHandler.js");
+      const { deviceId = 1, ...data } = req.body;
+      const result = await processTelemetry(String(deviceId), data);
+      res.json({ success: true, message: "Telemetri berhasil disimulasikan", result });
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.use("/", authRoutes);

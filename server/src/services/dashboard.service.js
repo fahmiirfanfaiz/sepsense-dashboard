@@ -1,5 +1,7 @@
 import { dashboardRepository } from "../repositories/dashboard.repository.js";
 import { AppError } from "../utils/AppError.js";
+import { db } from "../prisma/db.ts";
+import { getIO } from "../configs/socket.js";
 
 /**
  * RISK_SCORE mapping:
@@ -159,19 +161,109 @@ export async function getDeviceDetail(deviceId) {
 }
 
 /**
+ * Mengambil data pasien dari device tertentu.
+ */
+export async function getPatientDetail(deviceId) {
+  const session = await dashboardRepository.findActiveSessionByDeviceId(deviceId);
+  if (!session?.patient) {
+    return null;
+  }
+  return session.patient;
+}
+
+/**
+ * Buat atau perbarui identitas pasien (CRUD: Create & Update).
+ */
+export async function upsertPatient(deviceId, { name, medicalRecordNo, roomBed, birthDate }) {
+  const deviceIdNum = Number(deviceId);
+  if (isNaN(deviceIdNum)) {
+    throw new AppError(400, "Device ID tidak valid.", "INVALID_DEVICE_ID");
+  }
+
+  let session = await dashboardRepository.findActiveSessionByDeviceId(deviceIdNum);
+
+  if (!session) {
+    // Cari atau buat device jika belum ada
+    let device = await db.orm.public.Device.where({ id: deviceIdNum }).first();
+    if (!device) {
+      device = await db.orm.public.Device.create({
+        id: deviceIdNum,
+        deviceCode: `SEPSENSE_0${deviceIdNum}`,
+        label: `Bed ${deviceIdNum}`,
+        isActive: true,
+      });
+    }
+
+    const doctor = await db.orm.public.User.first();
+    const newPatient = await db.orm.public.Patient.create({
+      name: name?.trim() || `Pasien Bed ${deviceIdNum}`,
+      medicalRecordNo: medicalRecordNo?.trim() || `RM-${String(deviceIdNum).padStart(3, "0")}-${Date.now().toString().slice(-4)}`,
+      roomBed: roomBed?.trim() || `ICU - Bed ${deviceIdNum}`,
+      birthDate: birthDate || null,
+    });
+
+    session = await db.orm.public.MonitoringSession.create({
+      deviceId: device.id,
+      patientId: newPatient.id,
+      startedBy: doctor ? doctor.id : 1,
+      startedAt: new Date().toISOString(),
+    });
+    session = { ...session, patient: newPatient };
+  } else if (session.patient) {
+    await dashboardRepository.updatePatient(session.patient.id, {
+      name: name !== undefined ? name.trim() : undefined,
+      medicalRecordNo: medicalRecordNo !== undefined ? medicalRecordNo.trim() : undefined,
+      roomBed: roomBed !== undefined ? roomBed.trim() : undefined,
+      birthDate: birthDate !== undefined ? birthDate : undefined,
+    });
+  }
+
+  // Notifikasi update via Socket.IO
+  try {
+    const io = getIO();
+    const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
+    io.emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
+    io.to(`device:${deviceIdNum}`).emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
+    const overviewBeds = await listBedOverview();
+    io.to("overview").emit("overview:data", { beds: overviewBeds });
+  } catch (ioErr) {
+    // ignore
+  }
+
+  return { success: true };
+}
+
+/**
  * Perbarui nama pasien yang sedang dimonitor oleh device tertentu.
  */
 export async function updatePatientName(deviceId, name) {
-  const session = await dashboardRepository.findActiveSessionByDeviceId(deviceId);
+  return upsertPatient(deviceId, { name });
+}
+
+/**
+ * Hapus / Reset identitas pasien dari device (CRUD: Delete).
+ */
+export async function deletePatient(deviceId) {
+  const deviceIdNum = Number(deviceId);
+  const session = await dashboardRepository.findActiveSessionByDeviceId(deviceIdNum);
 
   if (!session?.patient) {
-    throw new AppError(
-      404,
-      "Tidak ada sesi aktif atau pasien terdaftar untuk device ini.",
-      "NO_ACTIVE_SESSION",
-    );
+    throw new AppError(404, "Tidak ada pasien terdaftar untuk device ini.", "NO_PATIENT");
   }
 
-  await dashboardRepository.updatePatientName(session.patient.id, name.trim());
-  return { success: true };
+  await dashboardRepository.deletePatient(session.patient.id);
+
+  // Notifikasi via Socket.IO
+  try {
+    const io = getIO();
+    const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
+    io.emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
+    io.to(`device:${deviceIdNum}`).emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
+    const overviewBeds = await listBedOverview();
+    io.to("overview").emit("overview:data", { beds: overviewBeds });
+  } catch {
+    // ignore
+  }
+
+  return { success: true, message: "Identitas pasien berhasil direset." };
 }

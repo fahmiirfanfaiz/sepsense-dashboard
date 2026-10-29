@@ -1,0 +1,9 @@
+# Diuji dengan Python 3.12. scikit-learn WAJIB sama antara pelatihan dan layanan
+# (model disimpan dengan joblib/pickle).
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pydantic>=2.7
+numpy==2.4.4
+pandas==3.0.2
+scikit-learn==1.8.0
+joblib==1.5.3
