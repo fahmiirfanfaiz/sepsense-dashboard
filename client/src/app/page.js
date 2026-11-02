@@ -14,9 +14,13 @@ import {
   Activity,
   Eye,
   Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiFetch, getStoredUser } from "@/lib/api";
+import { apiFetch, getStoredUser, bedApi } from "@/lib/api";
 import { subscribeToOverview } from "@/lib/socket";
 import AppShell from "@/components/AppShell";
 import Navbar from "@/components/Navbar";
@@ -147,10 +151,257 @@ function RiskBadge({ riskScore, warmingUp }) {
 // ──────────────────────────────────────────────
 // Bed Row
 // ──────────────────────────────────────────────
-function BedRow({ bed, index, onDetail }) {
+// ──────────────────────────────────────────────
+// Modal Tambah Bed Baru (CRUD: Create)
+// ──────────────────────────────────────────────
+function CreateBedModal({ isOpen, onClose, onCreated }) {
+  const [label, setLabel] = useState("");
+  const [deviceCode, setDeviceCode] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!isOpen) return null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await bedApi.create({
+        label: label.trim() || undefined,
+        deviceCode: deviceCode.trim() || undefined,
+        initialPatientName: patientName.trim() || undefined,
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err.message || "Gagal membuat Bed baru.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Bed className="w-5 h-5 text-[#4BB43A]" />
+            <h3 className="font-poppins font-bold text-foreground text-base">Tambah Bed Baru</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {error && <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-2.5 rounded-lg">{error}</div>}
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              Nama Bed (Label)
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: Bed 2 / ICU Bed 1"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              Kode Perangkat
+            </label>
+            <input
+              type="text"
+              placeholder="Contoh: SEPSENSE_02"
+              value={deviceCode}
+              onChange={(e) => setDeviceCode(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              Nama Pasien Awal (Opsional)
+            </label>
+            <input
+              type="text"
+              placeholder="Nama pasien yang menempati bed"
+              value={patientName}
+              onChange={(e) => setPatientName(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg border border-border text-xs font-inter font-medium text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-[#4BB43A] hover:bg-[#43A234] text-white text-xs font-inter font-semibold transition-colors flex items-center gap-1.5"
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Simpan Bed
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Modal Edit Data Bed (CRUD: Update)
+// ──────────────────────────────────────────────
+function EditBedModal({ isOpen, onClose, bed, onUpdated }) {
+  const [label, setLabel] = useState("");
+  const [deviceCode, setDeviceCode] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [startNewSession, setStartNewSession] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (bed) {
+      setLabel(bed.label || "");
+      setDeviceCode(bed.deviceCode || "");
+      setSessionId(bed.session?.id ? String(bed.session.id) : "");
+      setStartNewSession(false);
+      setError("");
+    }
+  }, [bed]);
+
+  if (!isOpen || !bed) return null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await bedApi.update(bed.deviceId, {
+        label: label.trim() || undefined,
+        deviceCode: deviceCode.trim() || undefined,
+        sessionId: startNewSession ? undefined : (sessionId ? Number(sessionId) : undefined),
+        startNewSession,
+      });
+      onUpdated();
+      onClose();
+    } catch (err) {
+      setError(err.message || "Gagal memperbarui data Bed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-[#4BB43A]" />
+            <h3 className="font-poppins font-bold text-foreground text-base">Edit Data Bed</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {error && <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 p-2.5 rounded-lg">{error}</div>}
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              Nama Bed (Label)
+            </label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+              placeholder="Nama Bed"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              Kode Perangkat
+            </label>
+            <input
+              type="text"
+              value={deviceCode}
+              onChange={(e) => setDeviceCode(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+              placeholder="SEPSENSE_01"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium font-inter text-muted-foreground block mb-1">
+              ID Sesi Aktif (Monitoring Session ID)
+            </label>
+            <input
+              type="number"
+              value={sessionId}
+              disabled={startNewSession}
+              onChange={(e) => setSessionId(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A] disabled:opacity-50"
+              placeholder="Contoh: 1"
+            />
+          </div>
+
+          <div className="pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-inter text-foreground">
+              <input
+                type="checkbox"
+                checked={startNewSession}
+                onChange={(e) => setStartNewSession(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-[#4BB43A] focus:ring-[#4BB43A]"
+              />
+              <span>Mulai Sesi Monitoring Baru (Reset Sesi & Data Aktif)</span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg border border-border text-xs font-inter font-medium text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-[#4BB43A] hover:bg-[#43A234] text-white text-xs font-inter font-semibold transition-colors flex items-center gap-1.5"
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Simpan Perubahan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Bed Row
+// ──────────────────────────────────────────────
+function BedRow({ bed, index, onDetail, onEdit, onDelete }) {
   const riskScore = bed.latestRiskAssessment?.riskScore ?? null;
   const warmingUp = bed.warmingUp === true;
-  // Saat warm-up, gunakan rowBg netral
   const cfg = warmingUp ? getRiskConfig(null) : getRiskConfig(riskScore);
 
   return (
@@ -165,12 +416,12 @@ function BedRow({ bed, index, onDetail }) {
         {index + 1}
       </td>
 
-      {/* Bed label */}
+      {/* Bed & Patient Identity */}
       <td className="px-4 py-4">
         <div className="flex items-center gap-2.5">
           <div
             className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center",
+              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
               bed.isConnected
                 ? "bg-[#4BB43A]/10 text-[#4BB43A]"
                 : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500",
@@ -179,14 +430,28 @@ function BedRow({ bed, index, onDetail }) {
             <Bed className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold font-poppins text-foreground">
-              {bed.label}
-            </p>
-            {bed.patient?.name && (
-              <p className="text-[11px] text-muted-foreground font-inter truncate max-w-[160px]">
-                {bed.patient.name}
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold font-poppins text-foreground">
+                {bed.label}
               </p>
-            )}
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted text-muted-foreground border border-border/40">
+                {bed.deviceCode}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {bed.patient?.name ? (
+                <p className="text-[11px] text-muted-foreground font-inter truncate max-w-[140px]">
+                  {bed.patient.name}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground font-inter italic">
+                  Belum ada pasien
+                </p>
+              )}
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded border border-emerald-200 dark:border-emerald-800">
+                Sesi #{bed.session?.id ?? "—"}
+              </span>
+            </div>
           </div>
         </div>
       </td>
@@ -217,21 +482,37 @@ function BedRow({ bed, index, onDetail }) {
         </div>
       </td>
 
-      {/* Risk Score — tampilkan warm-up state jika berlaku */}
+      {/* Risk Score */}
       <td className="px-4 py-4">
         <RiskBadge riskScore={riskScore} warmingUp={warmingUp} />
       </td>
 
-      {/* Detail button */}
+      {/* Actions (CRUD: Edit, Delete + Detail) */}
       <td className="px-4 py-4 pr-5 text-right">
-        <button
-          id={`detail-btn-${bed.deviceId}`}
-          onClick={() => onDetail(bed.deviceId)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#1A1A2E] hover:bg-[#1A2744] text-white text-xs font-semibold font-inter transition-all active:scale-95 shadow-sm group-hover:shadow-md"
-        >
-          Detail
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="inline-flex items-center justify-end gap-1.5">
+          <button
+            title="Edit Data Bed (Nama, Kode, Sesi ID)"
+            onClick={() => onEdit(bed)}
+            className="p-1.5 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            title="Hapus / Nonaktifkan Bed"
+            onClick={() => onDelete(bed)}
+            className="p-1.5 rounded-lg border border-border/60 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950/40 text-muted-foreground hover:text-red-600 transition-all shadow-sm active:scale-95"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            id={`detail-btn-${bed.deviceId}`}
+            onClick={() => onDetail(bed.deviceId)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#1A1A2E] hover:bg-[#1A2744] text-white text-xs font-semibold font-inter transition-all active:scale-95 shadow-sm group-hover:shadow-md"
+          >
+            Detail
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -261,6 +542,8 @@ export default function MainDashboard() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [pendingAlerts, setPendingAlerts] = useState([]);
   const [wsConnected, setWsConnected] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingBed, setEditingBed] = useState(null);
 
   const fetchBeds = useCallback(async () => {
     try {
@@ -393,6 +676,7 @@ export default function MainDashboard() {
                 ? (updatedRisk ?? next[idx].latestRiskAssessment)
                 : next[idx].latestRiskAssessment,
               sensorStatus: payload.sensorStatus ?? next[idx].sensorStatus,
+              patient: payload.bed?.patient?.name ? payload.bed.patient : next[idx].patient,
               // Simpan flag warm-up agar BedRow tahu harus tampilkan spinner
               warmingUp: payloadWarmingUp,
               sampleCount: payload.sampleCount ?? payload.windowStats?.sampleCount,
@@ -451,17 +735,26 @@ export default function MainDashboard() {
     if (!user) router.push("/login");
   }, [router]);
 
-  const connectedCount = beds.filter((b) => b.isConnected).length;
+  const totalBeds = beds.length;
   const warmingUpCount = beds.filter((b) => b.warmingUp === true && b.isConnected).length;
+  // Kondisi Stabil: Skor 0 - 1
   const stabilCount = beds.filter(
-    (b) => !b.warmingUp && (b.latestRiskAssessment?.riskScore ?? 0) === 0,
+    (b) => !b.warmingUp && (b.latestRiskAssessment?.riskScore ?? 0) <= 1,
   ).length;
-  const waspCount = beds.filter(
-    (b) => !b.warmingUp && (b.latestRiskAssessment?.riskScore === 1 || b.latestRiskAssessment?.riskScore === 2),
+  // Waspada / Periksa: Skor >= 2
+  const waspadaPeriksaCount = beds.filter(
+    (b) => !b.warmingUp && (b.latestRiskAssessment?.riskScore ?? 0) >= 2,
   ).length;
-  const attentionCount = beds.filter(
-    (b) => !b.warmingUp && (b.latestRiskAssessment?.riskScore ?? 0) >= 3,
-  ).length;
+
+  async function handleDeleteBed(bed) {
+    if (!window.confirm(`Apakah Anda yakin ingin menonaktifkan ${bed.label}?`)) return;
+    try {
+      await bedApi.delete(bed.deviceId);
+      await fetchBeds();
+    } catch (err) {
+      alert(err.message || "Gagal menghapus Bed.");
+    }
+  }
 
   return (
     <AppShell
@@ -469,7 +762,7 @@ export default function MainDashboard() {
         <Navbar
           mode="overview"
           beds={beds}
-          location="Unit Perawatan Intensif"
+          location="Ruang Rawat Inap"
         />
       }
     >
@@ -481,7 +774,7 @@ export default function MainDashboard() {
               Main Dashboard
             </h1>
             <p className="text-sm text-muted-foreground font-inter mt-0.5">
-              Monitoring realtime seluruh pasien yang terhubung perangkat SepSense
+              Monitoring realtime seluruh pasien yang terhubung perangkat Sepsense
             </p>
           </div>
           <div className="flex items-center gap-2.5">
@@ -514,30 +807,24 @@ export default function MainDashboard() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Summary Cards — 3 Cards: Total Bed, Kondisi Stabil (Skor 0-1), Waspada / Periksa (Skor >= 2) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SummaryCard
             label="Total Bed"
-            value={beds.length}
+            value={totalBeds}
             sub="Bed terdaftar"
             colorClass="text-foreground"
           />
           <SummaryCard
             label="Kondisi Stabil"
             value={stabilCount}
-            sub="Skor 0 (Stabil)"
-            colorClass="text-emerald-600 dark:text-emerald-400"
+            sub="Skor 0 - 1 (Stabil & Diamati)"
+            colorClass="text-[#4BB43A] dark:text-[#4BB43A]"
           />
           <SummaryCard
-            label="Waspada / Diamati"
-            value={waspCount}
-            sub="Skor 1 & 2"
-            colorClass="text-amber-500"
-          />
-          <SummaryCard
-            label="Perlu Perhatian / Periksa"
-            value={attentionCount}
-            sub="Skor ≥ 3"
+            label="Waspada / Periksa"
+            value={waspadaPeriksaCount}
+            sub="Skor ≥ 2 (Risiko Sepsis)"
             colorClass="text-red-600 dark:text-red-400"
           />
         </div>
@@ -563,16 +850,25 @@ export default function MainDashboard() {
                 Status Pasien per Bed
               </h2>
             </div>
-            {lastRefresh && (
-              <p suppressHydrationWarning className="text-[11px] text-muted-foreground font-inter">
-                Diperbarui:{" "}
-                {lastRefresh.toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-              </p>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4BB43A] hover:bg-[#43A234] text-white text-xs font-semibold font-inter transition-all shadow-sm active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Tambah Bed
+              </button>
+              {lastRefresh && (
+                <p suppressHydrationWarning className="text-[11px] text-muted-foreground font-inter hidden sm:block">
+                  Diperbarui:{" "}
+                  {lastRefresh.toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Loading / Error states */}
@@ -633,6 +929,8 @@ export default function MainDashboard() {
                       onDetail={(deviceId) =>
                         router.push(`/dashboard/${deviceId}`)
                       }
+                      onEdit={(b) => setEditingBed(b)}
+                      onDelete={handleDeleteBed}
                     />
                   ))}
                 </tbody>
@@ -641,6 +939,19 @@ export default function MainDashboard() {
           )}
         </div>
       </div>
+
+      {/* Modals CRUD Bed */}
+      <CreateBedModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreated={fetchBeds}
+      />
+      <EditBedModal
+        isOpen={Boolean(editingBed)}
+        onClose={() => setEditingBed(null)}
+        bed={editingBed}
+        onUpdated={fetchBeds}
+      />
 
       {/* Alert Notification Stack */}
       <AlertNotificationStack alerts={pendingAlerts} />

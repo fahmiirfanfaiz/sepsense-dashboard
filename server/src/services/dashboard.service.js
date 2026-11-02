@@ -2,6 +2,7 @@ import { dashboardRepository } from "../repositories/dashboard.repository.js";
 import { AppError } from "../utils/AppError.js";
 import { db } from "../prisma/db.ts";
 import { getIO } from "../configs/socket.js";
+import { clearDeviceContextCache } from "../handlers/mqttHandler.js";
 
 /**
  * RISK_SCORE mapping:
@@ -34,6 +35,7 @@ export async function listBedOverview() {
     ];
   }
 
+  let hwCounter = 1;
   const result = await Promise.all(
     entries.map(async ({ device, session }, index) => {
       let latestRiskAssessment = null;
@@ -49,10 +51,20 @@ export async function listBedOverview() {
         ? Date.now() - new Date(device.lastHeartbeatAt).getTime() <= 30_000
         : false;
 
+      // Bed Default untuk simulator (Device ID 1 / default),
+      // dan Bed 1 - n untuk hardware devices lain jika belum ada custom label
+      let computedLabel;
+      const isSimulator = device.id === 1 || String(device.deviceCode).toUpperCase().includes("DEFAULT");
+      if (isSimulator) {
+        computedLabel = (device.label && device.label !== "Bed 1") ? device.label : "Bed Default";
+      } else {
+        computedLabel = device.label || `Bed ${hwCounter++}`;
+      }
+
       return {
         deviceId: device.id,
         deviceCode: device.deviceCode,
-        label: device.label ?? `Bed ${index + 1}`,
+        label: computedLabel,
         isConnected,
         lastHeartbeatAt: device.lastHeartbeatAt,
         sensorStatus: {
@@ -88,7 +100,7 @@ export async function getDeviceDetail(deviceId) {
     return {
       deviceId: "default",
       deviceCode: "N/A",
-      label: "Bed 1 (Default)",
+      label: "Bed Default",
       isConnected: false,
       lastHeartbeatAt: null,
       sensorStatus: { max30102: false, mpu6050: false, mlx90614: false },
@@ -141,10 +153,18 @@ export async function getDeviceDetail(deviceId) {
       : null;
   }
 
+  let computedLabel;
+  const isSimulator = device.id === 1 || String(device.deviceCode).toUpperCase().includes("DEFAULT");
+  if (isSimulator) {
+    computedLabel = (device.label && device.label !== "Bed 1") ? device.label : "Bed Default";
+  } else {
+    computedLabel = device.label || `Bed ${deviceId}`;
+  }
+
   return {
     deviceId: device.id,
     deviceCode: device.deviceCode,
-    label: device.label ?? `Bed ${deviceId}`,
+    label: computedLabel,
     isConnected,
     lastHeartbeatAt: device.lastHeartbeatAt,
     sensorStatus: {
@@ -218,10 +238,18 @@ export async function upsertPatient(deviceId, { name, medicalRecordNo, roomBed, 
     });
   }
 
+  // Invalidate in-memory device context cache agar telemetri langsung menggunakan data terbaru
+  try {
+    clearDeviceContextCache(deviceIdNum);
+  } catch {
+    // ignore
+  }
+
+  const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
+
   // Notifikasi update via Socket.IO
   try {
     const io = getIO();
-    const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
     io.emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
     io.to(`device:${deviceIdNum}`).emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
     const overviewBeds = await listBedOverview();
@@ -230,7 +258,7 @@ export async function upsertPatient(deviceId, { name, medicalRecordNo, roomBed, 
     // ignore
   }
 
-  return { success: true };
+  return { success: true, patient: updatedPatient };
 }
 
 /**
@@ -253,10 +281,17 @@ export async function deletePatient(deviceId) {
 
   await dashboardRepository.deletePatient(session.patient.id);
 
+  try {
+    clearDeviceContextCache(deviceIdNum);
+  } catch {
+    // ignore
+  }
+
+  const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
+
   // Notifikasi via Socket.IO
   try {
     const io = getIO();
-    const updatedPatient = await dashboardRepository.findPatientById(session.patientId);
     io.emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
     io.to(`device:${deviceIdNum}`).emit("device:patient_update", { deviceId: deviceIdNum, patient: updatedPatient });
     const overviewBeds = await listBedOverview();
@@ -265,5 +300,169 @@ export async function deletePatient(deviceId) {
     // ignore
   }
 
-  return { success: true, message: "Identitas pasien berhasil direset." };
+  return { success: true, patient: updatedPatient, message: "Identitas pasien berhasil direset." };
+}
+
+/**
+ * Buat Bed baru (CRUD: Create).
+ */
+export async function createBed({ label, deviceCode, initialPatientName }) {
+  // Hitung jumlah hardware devices yang ada untuk default label (1 - n)
+  const allDevices = await db.orm.public.Device.where({ isActive: true }).all();
+  const hwCount = allDevices.filter(
+    (d) => d.id !== 1 && !String(d.deviceCode).toUpperCase().includes("DEFAULT") && d.label !== "Bed Default"
+  ).length;
+
+  const finalLabel = label?.trim() || `Bed ${hwCount + 1}`;
+  const finalCode = deviceCode?.trim() || `SEPSENSE_${String(Date.now()).slice(-4)}`;
+
+  const existingCode = await db.orm.public.Device.where({ deviceCode: finalCode }).first();
+  if (existingCode) {
+    throw new AppError(409, `Kode perangkat "${finalCode}" sudah digunakan.`, "DUPLICATE_DEVICE_CODE");
+  }
+
+  const device = await db.orm.public.Device.create({
+    deviceCode: finalCode,
+    label: finalLabel,
+    isActive: true,
+  });
+
+  const doctor = await db.orm.public.User.first();
+  const patient = await db.orm.public.Patient.create({
+    name: initialPatientName?.trim() || `Pasien ${finalLabel}`,
+    medicalRecordNo: `RM-${String(device.id).padStart(3, "0")}`,
+    roomBed: `ICU - ${finalLabel}`,
+  });
+
+  const session = await db.orm.public.MonitoringSession.create({
+    deviceId: device.id,
+    patientId: patient.id,
+    startedBy: doctor ? doctor.id : 1,
+    startedAt: new Date().toISOString(),
+  });
+
+  try {
+    clearDeviceContextCache(device.id);
+    const io = getIO();
+    const overviewBeds = await listBedOverview();
+    io.to("overview").emit("overview:data", { beds: overviewBeds });
+  } catch {}
+
+  return { success: true, device, session, patient };
+}
+
+/**
+ * Perbarui metadata Bed (CRUD: Update - Nama Bed, Kode Perangkat, Sesi ID).
+ */
+export async function updateBed(deviceId, { label, deviceCode, sessionId, startNewSession }) {
+  const deviceIdNum = Number(deviceId);
+  if (isNaN(deviceIdNum)) {
+    throw new AppError(400, "Device ID tidak valid.", "INVALID_DEVICE_ID");
+  }
+
+  const device = await db.orm.public.Device.where({ id: deviceIdNum }).first();
+  if (!device) {
+    throw new AppError(404, "Bed / Device tidak ditemukan.", "DEVICE_NOT_FOUND");
+  }
+
+  const updateData = {};
+  if (label !== undefined && label.trim().length > 0) {
+    updateData.label = label.trim();
+  }
+  if (deviceCode !== undefined && deviceCode.trim().length > 0) {
+    const trimmedCode = deviceCode.trim();
+    if (trimmedCode !== device.deviceCode) {
+      const codeCheck = await db.orm.public.Device.where({ deviceCode: trimmedCode }).first();
+      if (codeCheck && codeCheck.id !== deviceIdNum) {
+        throw new AppError(409, `Kode perangkat "${trimmedCode}" sudah digunakan oleh bed lain.`, "DUPLICATE_DEVICE_CODE");
+      }
+      updateData.deviceCode = trimmedCode;
+    }
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await db.orm.public.Device.where({ id: deviceIdNum }).update(updateData);
+  }
+
+  // Pengelolaan Sesi ID
+  let activeSession = await dashboardRepository.findActiveSessionByDeviceId(deviceIdNum);
+
+  if (startNewSession) {
+    // Akhiri sesi lama jika ada
+    const nowIso = new Date().toISOString();
+    if (activeSession) {
+      await db.orm.public.MonitoringSession.where({ id: activeSession.id }).update({ endedAt: nowIso });
+    }
+
+    const doctor = await db.orm.public.User.first();
+    const patient = activeSession?.patient ?? await db.orm.public.Patient.create({
+      name: `Pasien ${updateData.label || device.label || `Bed ${deviceIdNum}`}`,
+      medicalRecordNo: `RM-${String(deviceIdNum).padStart(3, "0")}`,
+      roomBed: `ICU - ${updateData.label || device.label || `Bed ${deviceIdNum}`}`,
+    });
+
+    activeSession = await db.orm.public.MonitoringSession.create({
+      deviceId: deviceIdNum,
+      patientId: patient.id,
+      startedBy: doctor ? doctor.id : 1,
+      startedAt: nowIso,
+    });
+  } else if (sessionId !== undefined && sessionId !== null) {
+    const targetSessionId = Number(sessionId);
+    if (!isNaN(targetSessionId) && (!activeSession || activeSession.id !== targetSessionId)) {
+      const targetSession = await db.orm.public.MonitoringSession.where({ id: targetSessionId, deviceId: deviceIdNum }).first();
+      if (targetSession) {
+        if (activeSession) {
+          await db.orm.public.MonitoringSession.where({ id: activeSession.id }).update({ endedAt: new Date().toISOString() });
+        }
+        await db.orm.public.MonitoringSession.where({ id: targetSessionId }).update({ endedAt: null });
+        activeSession = targetSession;
+      }
+    }
+  }
+
+  try {
+    clearDeviceContextCache(deviceIdNum);
+    const io = getIO();
+    const overviewBeds = await listBedOverview();
+    io.to("overview").emit("overview:data", { beds: overviewBeds });
+    const detail = await getDeviceDetail(deviceIdNum);
+    io.emit("device:status", detail);
+  } catch {}
+
+  const updatedDevice = await db.orm.public.Device.where({ id: deviceIdNum }).first();
+  return { success: true, device: updatedDevice, session: activeSession };
+}
+
+/**
+ * Hapus / Nonaktifkan Bed (CRUD: Delete).
+ */
+export async function deleteBed(deviceId) {
+  const deviceIdNum = Number(deviceId);
+  if (isNaN(deviceIdNum)) {
+    throw new AppError(400, "Device ID tidak valid.", "INVALID_DEVICE_ID");
+  }
+
+  const device = await db.orm.public.Device.where({ id: deviceIdNum }).first();
+  if (!device) {
+    throw new AppError(404, "Bed / Device tidak ditemukan.", "DEVICE_NOT_FOUND");
+  }
+
+  // Akhiri sesi aktif
+  const activeSession = await dashboardRepository.findActiveSessionByDeviceId(deviceIdNum);
+  if (activeSession) {
+    await db.orm.public.MonitoringSession.where({ id: activeSession.id }).update({ endedAt: new Date().toISOString() });
+  }
+
+  // Set nonaktif
+  await db.orm.public.Device.where({ id: deviceIdNum }).update({ isActive: false });
+
+  try {
+    clearDeviceContextCache(deviceIdNum);
+    const io = getIO();
+    const overviewBeds = await listBedOverview();
+    io.to("overview").emit("overview:data", { beds: overviewBeds });
+  } catch {}
+
+  return { success: true, message: `Bed ${device.label || deviceIdNum} berhasil dinonaktifkan.` };
 }

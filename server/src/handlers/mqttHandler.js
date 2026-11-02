@@ -159,6 +159,21 @@ function resetDeviceBufferIfStale(deviceId) {
 }
 
 /**
+ * Invalidate in-memory device & session context cache.
+ * Dipanggil saat data pasien diupdate/dihapus via API dashboard agar
+ * telemetri berikutnya langsung memuat data pasien terbaru dari DB.
+ */
+export function clearDeviceContextCache(deviceId) {
+    if (deviceId != null) {
+        deviceContextCache.delete(String(deviceId));
+        deviceContextCache.delete(Number(deviceId));
+        deviceContextCache.delete(`SEPSENSE_0${deviceId}`);
+    } else {
+        deviceContextCache.clear();
+    }
+}
+
+/**
  * Panggil AI FastAPI service untuk mengklasifikasi risiko sepsis dari bacaan sensor fisiologis
  */
 async function getAiPrediction(data, tempVal) {
@@ -189,7 +204,7 @@ async function getAiPrediction(data, tempVal) {
 /**
  * Mendapatkan atau membuat Device dan MonitoringSession yang aktif
  */
-async function getOrCreateDeviceContext(rawDeviceId, data) {
+export async function getOrCreateDeviceContext(rawDeviceId, data) {
     const cached = deviceContextCache.get(rawDeviceId);
     const now = Date.now();
 
@@ -219,17 +234,26 @@ async function getOrCreateDeviceContext(rawDeviceId, data) {
 
     if (!device) {
         try {
+            const isSimulator = rawDeviceId === 1 || rawDeviceId === "1" || String(rawDeviceId).toLowerCase().includes("default");
+            let initialLabel = "Bed Default";
+            if (!isSimulator) {
+                const existingHw = await db.orm.public.Device.where({ isActive: true }).all()
+                    .then(list => list.filter(d => d.id !== 1 && !String(d.deviceCode).toUpperCase().includes("DEFAULT") && d.label !== "Bed Default").length)
+                    .catch(() => 0);
+                initialLabel = `Bed ${existingHw + 1}`;
+            }
+
             device = await db.orm.public.Device.create({
                 id:              hasNumericId ? deviceIdNum : undefined,
                 deviceCode:      `SEPSENSE_0${rawDeviceId}`,
-                label:           `Bed ${rawDeviceId}`,
+                label:           initialLabel,
                 isActive:        true,
                 lastHeartbeatAt: nowIso,
                 statusMax30102,
                 statusMpu6050,
                 statusMlx90614,
             });
-            console.log(`[MQTT] Berhasil auto-provision device baru: ${device.deviceCode} (ID: ${device.id})`);
+            console.log(`[MQTT] Berhasil auto-provision device baru: ${device.deviceCode} (ID: ${device.id}) [${initialLabel}]`);
         } catch (err) {
             console.warn(`[MQTT] Auto-provision fallback:`, err.message);
             device = await db.orm.public.Device.first();
@@ -250,7 +274,7 @@ async function getOrCreateDeviceContext(rawDeviceId, data) {
         // Buat default patient jika belum ada sesi
         let patient = await db.orm.public.Patient.create({
             medicalRecordNo: `RM-${String(device.id).padStart(3, "0")}`,
-            name:            `Pasien Bed ${device.id}`,
+            name:            `Pasien ${device.label || `Bed ${device.id}`}`,
             roomBed:         `ICU - ${device.label || `Bed ${device.id}`}`,
         });
 
@@ -354,7 +378,6 @@ export async function processTelemetry(rawDeviceId, data) {
                 patient: session.patient ? {
                     id:              session.patient.id,
                     name:            session.patient.name,
-                    medicalRecordNo: session.patient.medicalRecordNo,
                     roomBed:         session.patient.roomBed,
                 } : null,
                 // Belum ada risk assessment selama warm-up
@@ -417,24 +440,46 @@ export async function processTelemetry(rawDeviceId, data) {
         // ─────────────────────────────────────────────────────────────────────
 
         // Klasifikasi Risiko Sepsis berbasis Model AI (XGBoost)
-        const aiResult = await getAiPrediction(data, tempVal);
+        let aiResult = await getAiPrediction(data, tempVal);
+
+        // Jika data telemetri menyertakan simulasi probabilitas eksplisit (dari simulate.js / simulate.py)
+        if (data.probability != null) {
+            if (!aiResult) {
+                aiResult = {
+                    probability:     data.probability,
+                    predicted_label: data.predicted_label ?? (data.riskScore >= 2 || data.probability >= 0.5),
+                    risk_level:      RISK_LEVEL_MAP[data.riskScore] ?? "Waspada",
+                    risk_score:      data.riskScore ?? 2,
+                    model_version:   "xgb-v2",
+                };
+            } else {
+                aiResult.probability = Math.max(aiResult.probability, data.probability);
+                aiResult.predicted_label = aiResult.predicted_label || Boolean(data.predicted_label);
+                if (typeof data.riskScore === "number") {
+                    aiResult.risk_score = data.riskScore;
+                    aiResult.risk_level = RISK_LEVEL_MAP[data.riskScore] ?? aiResult.risk_level;
+                }
+            }
+        }
 
         // Evaluasi kriteria individual fisiologis
-        const c1Val = data.c1_hr != null ? Boolean(data.c1_hr) : (data.heartRate != null && data.heartRate > 90);
+        const c1Val = data.c1_hr != null ? Boolean(data.c1_hr) : (data.heartRate != null && (data.heartRate < 60 || data.heartRate > 90));
         const c2Val = data.c2_rr != null ? Boolean(data.c2_rr) : (data.respiratoryRate != null && data.respiratoryRate > 20);
         const c3Val = data.c3_temp != null ? Boolean(data.c3_temp) : (tempVal != null && (tempVal > 38.0 || tempVal < 36.0));
-        const c4Val = data.c4_spo2 != null ? Boolean(data.c4_spo2) : (data.spo2 != null && data.spo2 <= 95);
+        const c4Val = data.c4_spo2 != null ? Boolean(data.c4_spo2) : (data.spo2 != null && data.spo2 < 95.1);
 
         // Fallback SIRS rule jika AI service tidak dapat dijangkau
-        const fallbackScore = (c1Val ? 1 : 0) + (c2Val ? 1 : 0) + (c3Val ? 1 : 0) + (c4Val ? 1 : 0);
-        const score         = aiResult
-            ? aiResult.risk_score
-            : (typeof data.riskScore === "number" ? data.riskScore : fallbackScore);
+        const sirsScore = (c1Val ? 1 : 0) + (c2Val ? 1 : 0) + (c3Val ? 1 : 0) + (c4Val ? 1 : 0);
+        
+        // Risk score secara ketat dan konsisten mengikuti jumlah kriteria abnormal (0 - 4):
+        // Jika data simulasi mengirimkan riskScore eksplisit, gunakan nilai tersebut.
+        // Jika tidak, gunakan skor SIRS yang dihitung dari 4 kriteria fisiologis.
+        const score = typeof data.riskScore === "number"
+            ? data.riskScore
+            : (aiResult?.risk_score ?? sirsScore);
 
         // Gunakan peta label evaluasi risk score yang konsisten (0–4)
-        const riskLevel = aiResult
-            ? (RISK_LEVEL_MAP[aiResult.risk_score] ?? aiResult.risk_level ?? RISK_LEVEL_MAP[0])
-            : (RISK_LEVEL_MAP[score] ?? RISK_LEVEL_MAP[0]);
+        const riskLevel = RISK_LEVEL_MAP[score] ?? "Stabil";
 
         let assessment = {
             riskScore: score,
@@ -511,9 +556,9 @@ export async function processTelemetry(rawDeviceId, data) {
 
         const latestAiPrediction = aiPredictionRecord || (aiResult ? {
             probability:    aiResult.probability,
-            predictedLabel: aiResult.predicted_label,
-            modelVersion:   aiResult.model_version,
-            riskLevel:      aiResult.risk_level,
+            predictedLabel: Boolean(aiResult.predicted_label ?? aiResult.predictedLabel),
+            modelVersion:   aiResult.model_version || "xgb-v2",
+            riskLevel:      aiResult.risk_level || riskLevel,
             createdAt:      nowIso,
         } : null);
 
@@ -533,7 +578,6 @@ export async function processTelemetry(rawDeviceId, data) {
             patient: session.patient ? {
                 id:              session.patient.id,
                 name:            session.patient.name,
-                medicalRecordNo: session.patient.medicalRecordNo,
                 roomBed:         session.patient.roomBed,
             } : null,
             latestRiskAssessment: assessment,

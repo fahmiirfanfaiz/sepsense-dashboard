@@ -75,6 +75,8 @@ export function createApp() {
 
   app.use("/", authRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api", dashboardRoutes);
+  app.use("/", dashboardRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

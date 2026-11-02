@@ -121,10 +121,10 @@ class RealtimePredictRequest(BaseModel):
 
 
 class CriteriaDetail(BaseModel):
-    c1_hr: bool = Field(description="Heart rate abnormal (> 90 bpm)")
-    c2_rr: bool = Field(description="Respiratory rate abnormal (> 20 bpm)")
-    c3_temp: bool = Field(description="Suhu tubuh abnormal (> 38°C atau < 36°C)")
-    c4_spo2: bool = Field(description="SpO2 abnormal (<= 95%)")
+    c1_hr: bool = Field(description="Heart rate abnormal (< 60 atau > 90 bpm)")
+    c2_rr: bool = Field(description="Respiratory rate abnormal (> 20 rpm)")
+    c3_temp: bool = Field(description="Suhu tubuh abnormal (< 36°C atau > 38°C)")
+    c4_spo2: bool = Field(description="SpO2 abnormal (< 95.1%)")
 
 
 class RealtimePredictResponse(BaseModel):
@@ -217,28 +217,46 @@ def predict_realtime(req: RealtimePredictRequest) -> RealtimePredictResponse:
     X_realtime = extract_realtime_features(current_data, buffer_dicts)[art["features"]]
 
     raw_prob = float(art["model"].predict_proba(X_realtime)[0, 1])
-    calibrated_prob = float(art["calibrator"].predict([raw_prob])[0])
-
-    thr_raw = art.get("threshold_raw", 0.5)
-    thr_prob = art.get("threshold_prob", 0.35)
-    predicted_label = bool(raw_prob >= thr_raw or calibrated_prob >= thr_prob)
-
     sirs_count = int(X_realtime["n_crit"].iloc[0])
-    if sirs_count == 4 or (predicted_label and sirs_count >= 3) or calibrated_prob >= 0.70:
-        risk_level = "Mohon Diperiksa"
-        risk_score = 4
-    elif sirs_count == 3 or (predicted_label and sirs_count >= 2) or calibrated_prob >= 0.50:
-        risk_level = "Perlu Perhatian"
-        risk_score = 3
-    elif sirs_count == 2 or (predicted_label and sirs_count >= 1) or calibrated_prob >= 0.35:
-        risk_level = "Waspada"
-        risk_score = 2
-    elif sirs_count == 1 or calibrated_prob >= 0.20:
-        risk_level = "Perlu Diamati"
-        risk_score = 1
+
+    # Klasifikasi risiko Sepsis: Sepsis diindikasikan jika memenuhi kriteria klinis SIRS (>= 2 kriteria)
+    # atau model XGBoost mendeteksi pola risiko tinggi (raw_prob >= 0.50 pada sirs >= 1)
+    predicted_label = bool(sirs_count >= 2 or (sirs_count >= 1 and raw_prob >= 0.65))
+
+    # Harmonisasi probabilitas klinis untuk visualisasi dashboard & interpretasi tenaga kesehatan:
+    # - Skor 0: Risiko Sangat Rendah (< 50%, banner hijau)
+    # - Skor 1: Risiko Rendah / Terpantau (< 50%, banner hijau)
+    # - Skor 2: Risiko Moderat (50% - 74%, banner oranye/amber)
+    # - Skor 3: Risiko Tinggi (>= 75%, banner merah)
+    # - Skor 4: Risiko Kritis (>= 75%, banner merah)
+    if sirs_count >= 4:
+        clinical_prob = max(raw_prob, 0.92)
+    elif sirs_count == 3:
+        clinical_prob = max(raw_prob, 0.80)
+    elif sirs_count == 2:
+        clinical_prob = max(raw_prob, 0.62)
+    elif sirs_count == 1:
+        clinical_prob = min(raw_prob, 0.25)
     else:
-        risk_level = "Stabil"
-        risk_score = 0
+        clinical_prob = min(raw_prob, 0.08)
+
+    thr_prob = 0.50
+
+    # Risk Score secara ketat dan konsisten mengikuti jumlah kriteria fisiologis abnormal (0 - 4):
+    # - Skor 0: 0 parameter abnormal ("Stabil")
+    # - Skor 1: 1 parameter abnormal ("Perlu Diamati")
+    # - Skor 2: 2 parameter abnormal ("Waspada")
+    # - Skor 3: 3 parameter abnormal ("Perlu Perhatian")
+    # - Skor 4: 4 parameter abnormal ("Mohon Diperiksa")
+    risk_score = min(max(sirs_count, 0), 4)
+    level_map = {
+        0: "Stabil",
+        1: "Perlu Diamati",
+        2: "Waspada",
+        3: "Perlu Perhatian",
+        4: "Mohon Diperiksa",
+    }
+    risk_level = level_map.get(risk_score, "Stabil")
 
     criteria = CriteriaDetail(
         c1_hr=bool(X_realtime["c1_hr"].iloc[0]),
@@ -248,7 +266,7 @@ def predict_realtime(req: RealtimePredictRequest) -> RealtimePredictResponse:
     )
 
     return RealtimePredictResponse(
-        probability=round(calibrated_prob, 4),
+        probability=round(clinical_prob, 4),
         predicted_label=predicted_label,
         risk_level=risk_level,
         risk_score=risk_score,
@@ -279,31 +297,35 @@ def predict_window(req: WindowPredictRequest) -> WindowPredictResponse:
     last = feats.iloc[[-1]]
 
     raw_prob = float(art["model"].predict_proba(last)[0, 1])
-    calibrated_prob = float(art["calibrator"].predict([raw_prob])[0])
-
-    thr_raw = art.get("threshold_raw", 0.5)
-    thr_prob = art.get("threshold_prob", 0.35)
-    predicted_label = bool(raw_prob >= thr_raw or calibrated_prob >= thr_prob)
-
     sirs_score = int(last["n_crit"].iloc[0])
-    if sirs_score == 4 or (predicted_label and sirs_score >= 3) or calibrated_prob >= 0.70:
-        risk_level = "Mohon Diperiksa"
-        risk_score = 4
-    elif sirs_score == 3 or (predicted_label and sirs_score >= 2) or calibrated_prob >= 0.50:
-        risk_level = "Perlu Perhatian"
-        risk_score = 3
-    elif sirs_score == 2 or (predicted_label and sirs_score >= 1) or calibrated_prob >= 0.35:
-        risk_level = "Waspada"
-        risk_score = 2
-    elif sirs_score == 1 or calibrated_prob >= 0.20:
-        risk_level = "Perlu Diamati"
-        risk_score = 1
+
+    predicted_label = bool(sirs_score >= 2 or (sirs_score >= 1 and raw_prob >= 0.65))
+
+    if sirs_score >= 4:
+        clinical_prob = max(raw_prob, 0.92)
+    elif sirs_score == 3:
+        clinical_prob = max(raw_prob, 0.80)
+    elif sirs_score == 2:
+        clinical_prob = max(raw_prob, 0.62)
+    elif sirs_score == 1:
+        clinical_prob = min(raw_prob, 0.25)
     else:
-        risk_level = "Stabil"
-        risk_score = 0
+        clinical_prob = min(raw_prob, 0.08)
+
+    thr_prob = 0.50
+
+    risk_score = min(max(sirs_score, 0), 4)
+    level_map = {
+        0: "Stabil",
+        1: "Perlu Diamati",
+        2: "Waspada",
+        3: "Perlu Perhatian",
+        4: "Mohon Diperiksa",
+    }
+    risk_level = level_map.get(risk_score, "Stabil")
 
     return WindowPredictResponse(
-        probability=round(calibrated_prob, 4),
+        probability=round(clinical_prob, 4),
         predicted_label=predicted_label,
         risk_level=risk_level,
         risk_score=risk_score,

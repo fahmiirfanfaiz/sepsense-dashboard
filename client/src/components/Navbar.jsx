@@ -90,7 +90,7 @@ export default function Navbar({ mode = "overview", beds = [], device = null, lo
       <div className="flex items-center gap-3 min-w-0">
         <Activity className="w-4 h-4 text-[#4BB43A] shrink-0" />
         <h2 className="font-poppins font-semibold text-sm text-foreground truncate hidden sm:block">
-          {mode === "detail" && device ? device.label : "Monitoring Sepsis"}
+          {mode === "detail" && device ? device.label : "Monitoring Risiko Sepsis"}
         </h2>
         <span className="text-border/80">|</span>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

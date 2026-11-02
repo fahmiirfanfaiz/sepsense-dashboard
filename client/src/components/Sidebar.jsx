@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -68,8 +69,15 @@ export default function Sidebar({ collapsed, onToggle }) {
           collapsed && "justify-center px-2",
         )}
       >
-        <div className="shrink-0 w-8 h-8 rounded-lg bg-[#4BB43A] flex items-center justify-center shadow-[0_0_16px_rgba(75,180,58,0.45)]">
-          <span className="text-white text-[13px] font-bold font-poppins leading-none">S</span>
+        <div className="shrink-0 w-8 h-8 flex items-center justify-center">
+          <Image
+            src="/images/logo.svg"
+            alt="Sepsense Logo"
+            width={28}
+            height={36}
+            priority
+            className="object-contain w-auto h-7 drop-shadow-[0_0_12px_rgba(75,180,58,0.35)]"
+          />
         </div>
         {!collapsed && (
           <span className="font-poppins font-bold text-white text-[15px] tracking-tight whitespace-nowrap">

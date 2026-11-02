@@ -23,6 +23,8 @@ import {
   Loader2,
   Clock,
 } from "lucide-react";
+import { RiErrorWarningLine } from "react-icons/ri";
+import { FaRegCircleCheck } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
 import { apiFetch, getStoredUser } from "@/lib/api";
 import { subscribeToDevice } from "@/lib/socket";
@@ -231,7 +233,7 @@ function AiPredictionCard({ prediction, isWarmingUp, sampleCount }) {
             Sedang mengambil data...
           </p>
           <p className="text-xs text-muted-foreground font-inter mt-0.5">
-            Klasifikasi AI XGBoost tersedia setelah 3 menit data terkumpul
+            Estimasi probabilitas risiko Sepsis tersedia setelah 3 menit data terkumpul
             ({Math.min(sampleCount, 18)}/18 sampel)
           </p>
         </div>
@@ -257,21 +259,56 @@ function AiPredictionCard({ prediction, isWarmingUp, sampleCount }) {
   }
 
   const pct = Math.round((prediction.probability ?? 0) * 100);
-  const isSepsis = prediction.predictedLabel;
+
+  // Klasifikasi visual 3 tingkatan selaras dengan indikator batang persentase:
+  // 1. < 50%    : Hijau (Risiko Sangat Rendah / Aman)
+  // 2. 50% - 74%: Oranye / Amber (Risiko Moderat / Waspada)
+  // 3. >= 75%   : Merah (Risiko Tinggi Sepsis)
+  const isPredictedSepsis = Boolean(prediction.predictedLabel);
+  const isHighRisk = pct >= 75;
+  const isModerateRisk = (pct >= 50 && pct < 75) || (isPredictedSepsis && !isHighRisk);
+
+  const cardConfig = isHighRisk
+    ? {
+        cardBg: "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800",
+        brainColor: "text-red-500",
+        percentColor: "text-red-600 dark:text-red-400",
+        barColor: "bg-red-500",
+        bannerBg: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+        bannerIcon: RiErrorWarningLine,
+        bannerIconColor: "text-red-600 dark:text-red-400",
+        bannerText: "Model memprediksi RISIKO SEPSIS TINGGI — segera evaluasi kondisi klinis pasien.",
+      }
+    : isModerateRisk
+    ? {
+        cardBg: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
+        brainColor: "text-amber-500",
+        percentColor: "text-amber-600 dark:text-amber-400",
+        barColor: "bg-orange-400",
+        bannerBg: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+        bannerIcon: RiErrorWarningLine,
+        bannerIconColor: "text-amber-600 dark:text-amber-400",
+        bannerText: "Model mendeteksi RISIKO SEPSIS MODERAT — tingkatkan observasi pasien.",
+      }
+    : {
+        cardBg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800",
+        brainColor: "text-emerald-500",
+        percentColor: "text-emerald-600 dark:text-emerald-400",
+        barColor: "bg-emerald-500",
+        bannerBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        bannerIcon: FaRegCircleCheck,
+        bannerIconColor: "text-emerald-600 dark:text-emerald-400",
+        bannerText: "Model tidak mendeteksi risiko sepsis pada sampel bacaan saat ini.",
+      };
+
+  const BannerIcon = cardConfig.bannerIcon;
 
   return (
-    <div
-      className={cn(
-        "rounded-2xl border p-5 space-y-3",
-        isSepsis
-          ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
-          : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800",
-      )}
-    >
+    <div className={cn("rounded-2xl border p-5 space-y-3", cardConfig.cardBg)}>
       <div className="flex items-center gap-2">
-        <Brain className={cn("w-5 h-5", isSepsis ? "text-red-500" : "text-emerald-500")} />
+        <Brain className={cn("w-5 h-5", cardConfig.brainColor)} />
         <p className="text-sm font-bold font-poppins text-foreground">
-          Klasifikasi AI XGBoost
+          Klasifikasi AI 
         </p>
         <span className="ml-auto text-[10px] font-mono text-muted-foreground">
           v{prediction.modelVersion || "xgb-v2"}
@@ -282,16 +319,13 @@ function AiPredictionCard({ prediction, isWarmingUp, sampleCount }) {
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-xs font-inter text-muted-foreground">Probabilitas Risiko Sepsis</p>
-          <p className={cn("text-sm font-bold font-poppins", isSepsis ? "text-red-600" : "text-emerald-600")}>
+          <p className={cn("text-sm font-bold font-poppins", cardConfig.percentColor)}>
             {pct}%
           </p>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
-            className={cn(
-              "h-full rounded-full transition-all duration-700",
-              pct >= 75 ? "bg-red-500" : pct >= 50 ? "bg-orange-400" : "bg-emerald-500",
-            )}
+            className={cn("h-full rounded-full transition-all duration-700", cardConfig.barColor)}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -299,15 +333,12 @@ function AiPredictionCard({ prediction, isWarmingUp, sampleCount }) {
 
       <div
         className={cn(
-          "rounded-lg px-3 py-2.5 text-xs font-semibold font-inter",
-          isSepsis
-            ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
-            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+          "rounded-lg px-3 py-2.5 text-xs font-semibold font-inter flex items-center gap-2",
+          cardConfig.bannerBg,
         )}
       >
-        {isSepsis
-          ? "⚠️ Model memprediksi RISIKO SEPSIS — segera evaluasi kondisi klinis pasien."
-          : "✅ Model tidak mendeteksi risiko sepsis pada sampel bacaan saat ini."}
+        <BannerIcon className={cn("w-4 h-4 shrink-0", cardConfig.bannerIconColor)} />
+        <span>{cardConfig.bannerText}</span>
       </div>
     </div>
   );
@@ -325,7 +356,6 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
 
   const [form, setForm] = useState({
     name: patient?.name || "",
-    medicalRecordNo: patient?.medicalRecordNo || "",
     roomBed: patient?.roomBed || "",
     birthDate: patient?.birthDate ? patient.birthDate.split("T")[0] : "",
   });
@@ -334,7 +364,6 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
   useEffect(() => {
     setForm({
       name: patient?.name || "",
-      medicalRecordNo: patient?.medicalRecordNo || "",
       roomBed: patient?.roomBed || "",
       birthDate: patient?.birthDate ? patient.birthDate.split("T")[0] : "",
     });
@@ -356,7 +385,6 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
         method: "PATCH",
         body: JSON.stringify({
           name: form.name.trim(),
-          medicalRecordNo: form.medicalRecordNo.trim() || undefined,
           roomBed: form.roomBed.trim() || undefined,
           birthDate: form.birthDate || undefined,
         }),
@@ -368,7 +396,10 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
       }
 
       const resData = await res.json();
-      onPatientUpdated(resData.patient);
+      const updatedP = resData?.patient ?? resData;
+      if (updatedP) {
+        onPatientUpdated(updatedP);
+      }
       setIsEditing(false);
       setSuccessMsg("Identitas pasien berhasil diperbarui.");
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -397,7 +428,8 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
       }
 
       const resData = await res.json();
-      onPatientUpdated(resData.patient);
+      const updatedP = resData?.patient ?? null;
+      onPatientUpdated(updatedP);
       setIsEditing(false);
       setSuccessMsg("Identitas pasien berhasil direset.");
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -468,18 +500,6 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-medium font-inter text-muted-foreground block mb-1">
-                No. Rekam Medis (RM)
-              </label>
-              <input
-                type="text"
-                value={form.medicalRecordNo}
-                onChange={(e) => setForm({ ...form, medicalRecordNo: e.target.value })}
-                placeholder="RM-00123"
-                className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium font-inter text-muted-foreground block mb-1">
                 Ruangan / Bed
               </label>
               <input
@@ -490,18 +510,17 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
                 className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-medium font-inter text-muted-foreground block mb-1">
-              Tanggal Lahir (Opsional)
-            </label>
-            <input
-              type="date"
-              value={form.birthDate}
-              onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
-              className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
-            />
+            <div>
+              <label className="text-[11px] font-medium font-inter text-muted-foreground block mb-1">
+                Tanggal Lahir (Opsional)
+              </label>
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+                className="w-full h-9 px-3 rounded-lg border border-border text-sm font-inter bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-[#4BB43A]/30 focus:border-[#4BB43A]"
+              />
+            </div>
           </div>
 
           {error && <p className="text-xs text-red-500 font-inter">{error}</p>}
@@ -538,15 +557,9 @@ function PatientEditor({ deviceId, patient, onPatientUpdated }) {
               )}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs font-inter text-muted-foreground pt-1 border-t border-border/40">
-            <div>
-              <span className="text-[10px] uppercase font-mono block opacity-70">No. Rekam Medis</span>
-              <span className="font-medium text-foreground">{patient?.medicalRecordNo || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-mono block opacity-70">Ruangan</span>
-              <span className="font-medium text-foreground">{patient?.roomBed || "—"}</span>
-            </div>
+          <div className="text-xs font-inter text-muted-foreground pt-1 border-t border-border/40">
+            <span className="text-[10px] uppercase font-mono block opacity-70">Ruangan / Bed</span>
+            <span className="font-medium text-foreground">{patient?.roomBed || "—"}</span>
           </div>
         </div>
       )}
@@ -669,11 +682,13 @@ export default function DetailedDashboardPage() {
         // PENTING: Jika masih warm-up, JANGAN timpa riskAssessment yang sudah ada
         setDetail((prev) => {
           if (!prev) return prev;
+          const telemetryPatient = payload.bed?.patient?.name ? payload.bed.patient : null;
           return {
             ...prev,
             isConnected: true,
             lastHeartbeatAt: payload.lastHeartbeatAt || new Date().toISOString(),
             sensorStatus: payload.sensorStatus ?? prev.sensorStatus,
+            patient: telemetryPatient ?? prev.patient,
             // Hanya update risk assessment jika warm-up sudah selesai
             latestRiskAssessment: payloadWarmingUp
               ? prev.latestRiskAssessment
@@ -707,8 +722,11 @@ export default function DetailedDashboardPage() {
         }
       },
       // Callback update data pasien real-time dari client lain
-      (updatedPatient) => {
-        setDetail((prev) => (prev ? { ...prev, patient: updatedPatient } : prev));
+      (patientPayload) => {
+        const p = patientPayload?.patient ?? patientPayload;
+        if (p) {
+          setDetail((prev) => (prev ? { ...prev, patient: p } : prev));
+        }
       }
     );
 
@@ -754,7 +772,7 @@ export default function DetailedDashboardPage() {
         <Navbar
           mode="detail"
           device={detail}
-          location="Unit Perawatan Intensif"
+          location="Ruang Rawat Inap"
         />
       }
     >

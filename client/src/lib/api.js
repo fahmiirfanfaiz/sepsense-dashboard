@@ -224,3 +224,46 @@ export const authApi = {
     return data.user;
   },
 };
+
+export const bedApi = {
+  async create({ label, deviceCode, initialPatientName }) {
+    const res = await apiFetch("/api/dashboard/beds", {
+      method: "POST",
+      body: JSON.stringify({ label, deviceCode, initialPatientName }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || "Gagal membuat Bed baru.");
+      err.code = data.code;
+      throw err;
+    }
+    return data;
+  },
+
+  async update(deviceId, { label, deviceCode, sessionId, startNewSession }) {
+    const res = await apiFetch(`/api/dashboard/device/${deviceId}/bed`, {
+      method: "PATCH",
+      body: JSON.stringify({ label, deviceCode, sessionId, startNewSession }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || "Gagal memperbarui data Bed.");
+      err.code = data.code;
+      throw err;
+    }
+    return data;
+  },
+
+  async delete(deviceId) {
+    const res = await apiFetch(`/api/dashboard/device/${deviceId}/bed`, {
+      method: "DELETE",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || "Gagal menghapus Bed.");
+      err.code = data.code;
+      throw err;
+    }
+    return data;
+  },
+};

@@ -68,7 +68,7 @@ const CHART_CONFIG = {
     color: "#ef4444",
     bgColor: "rgba(239, 68, 68, 0.08)",
     refMin: 60,
-    refMax: 100,
+    refMax: 90,
     domain: [30, 200],
   },
   respiratoryRate: {
@@ -85,8 +85,8 @@ const CHART_CONFIG = {
     unit: "°C",
     color: "#f97316",
     bgColor: "rgba(249, 115, 22, 0.08)",
-    refMin: 36.1,
-    refMax: 37.2,
+    refMin: 36,
+    refMax: 38,
     domain: [34, 42],
   },
   spo2: {
@@ -94,7 +94,7 @@ const CHART_CONFIG = {
     unit: "%",
     color: "#8b5cf6",
     bgColor: "rgba(139, 92, 246, 0.08)",
-    refMin: 95,
+    refMin: 95.1,
     refMax: 100,
     domain: [80, 102],
   },

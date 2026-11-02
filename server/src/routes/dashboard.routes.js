@@ -15,6 +15,24 @@ router.use(requireAuth);
 router.get("/beds", asyncHandler(dashboardController.listBeds));
 
 /**
+ * POST /api/dashboard/beds
+ * Tambah Bed baru.
+ */
+router.post("/beds", asyncHandler(dashboardController.createBed));
+
+/**
+ * PATCH /api/dashboard/device/:deviceId/bed
+ * Perbarui metadata bed (nama, kode, sesi ID).
+ */
+router.patch("/device/:deviceId/bed", asyncHandler(dashboardController.updateBed));
+
+/**
+ * DELETE /api/dashboard/device/:deviceId/bed
+ * Hapus / nonaktifkan bed.
+ */
+router.delete("/device/:deviceId/bed", asyncHandler(dashboardController.deleteBed));
+
+/**
  * GET /api/dashboard/device/:deviceId
  * Detail lengkap satu device.
  */

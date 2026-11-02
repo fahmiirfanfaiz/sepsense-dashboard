@@ -83,10 +83,10 @@ def build_features(df: pd.DataFrame, key: str = "pid") -> pd.DataFrame:
         feats[f"{v}_d6"] = d6[v]
 
     # SIRS / NEWS Flags
-    c1 = (ff["HR"] > 90).astype(int)
+    c1 = ((ff["HR"] < 60) | (ff["HR"] > 90)).astype(int)
     c2 = (ff["Resp"] > 20).astype(int)
     c3 = ((ff["Temp"] > 38.0) | (ff["Temp"] < 36.0)).astype(int)
-    c4 = (ff["O2Sat"] <= 95.0).astype(int)
+    c4 = (ff["O2Sat"] < 95.1).astype(int)
 
     feats["c1_hr"] = c1
     feats["c2_rr"] = c2
@@ -175,10 +175,10 @@ def extract_realtime_features(
     temp = row["Temp_ff"]
     spo2 = row["O2Sat_ff"]
 
-    c1 = 1 if (not np.isnan(hr) and hr > 90) else 0
+    c1 = 1 if (not np.isnan(hr) and (hr < 60 or hr > 90)) else 0
     c2 = 1 if (not np.isnan(resp) and resp > 20) else 0
     c3 = 1 if (not np.isnan(temp) and (temp > 38.0 or temp < 36.0)) else 0
-    c4 = 1 if (not np.isnan(spo2) and spo2 <= 95.0) else 0
+    c4 = 1 if (not np.isnan(spo2) and spo2 < 95.1) else 0
 
     row["c1_hr"] = c1
     row["c2_rr"] = c2

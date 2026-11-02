@@ -84,3 +84,41 @@ export async function updatePatientName(req, res) {
   const result = await dashboardService.updatePatientName(deviceId, name);
   return res.status(200).json(result);
 }
+
+/**
+ * POST /api/dashboard/beds
+ * Body: { label?: string, deviceCode?: string, initialPatientName?: string }
+ * Menambahkan Bed baru.
+ */
+export async function createBed(req, res) {
+  const { label, deviceCode, initialPatientName } = req.body;
+  const result = await dashboardService.createBed({ label, deviceCode, initialPatientName });
+  return res.status(201).json(result);
+}
+
+/**
+ * PATCH /api/dashboard/device/:deviceId/bed
+ * Body: { label?: string, deviceCode?: string, sessionId?: number, startNewSession?: boolean }
+ * Memperbarui data Bed (Nama bed, kode perangkat, dan sesi ID).
+ */
+export async function updateBed(req, res) {
+  const { deviceId } = req.params;
+  const { label, deviceCode, sessionId, startNewSession } = req.body;
+  const result = await dashboardService.updateBed(deviceId, {
+    label,
+    deviceCode,
+    sessionId,
+    startNewSession,
+  });
+  return res.status(200).json(result);
+}
+
+/**
+ * DELETE /api/dashboard/device/:deviceId/bed
+ * Menghapus/menonaktifkan Bed.
+ */
+export async function deleteBed(req, res) {
+  const { deviceId } = req.params;
+  const result = await dashboardService.deleteBed(deviceId);
+  return res.status(200).json(result);
+}
