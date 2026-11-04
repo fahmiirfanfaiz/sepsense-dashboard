@@ -53,9 +53,15 @@ export const env = Object.freeze({
   isProduction,
   port: raw.PORT,
   databaseUrl: raw.DATABASE_URL,
-  frontendOrigins: raw.FRONTEND_URL.split(",")
-    .map((origin) => origin.trim().replace(/\/+$/, ""))
-    .filter(Boolean),
+  frontendOrigins: Array.from(
+    new Set([
+      ...raw.FRONTEND_URL.split(",")
+        .map((origin) => origin.trim().replace(/\/+$/, ""))
+        .filter(Boolean),
+      "http://localhost:3000",
+      "https://sepsense.vercel.app",
+    ]),
+  ),
 
   jwtAccessSecret: raw.JWT_ACCESS_SECRET,
   jwtIssuer: raw.JWT_ISSUER,

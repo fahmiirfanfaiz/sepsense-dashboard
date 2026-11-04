@@ -3,8 +3,26 @@
  * Menyediakan interseptor token, silent refresh otomatis, dan helper autentikasi.
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+function resolveApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+  if (
+    process.env.NEXT_PUBLIC_API_BASE_URL &&
+    !process.env.NEXT_PUBLIC_API_BASE_URL.includes("localhost")
+  ) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "https://sepsense-backend.onrender.com"
+  );
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const ACCESS_TOKEN_KEY = "sepsense_access_token";
 const USER_KEY = "sepsense_user";

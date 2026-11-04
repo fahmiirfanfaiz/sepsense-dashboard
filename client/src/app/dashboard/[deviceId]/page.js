@@ -612,8 +612,28 @@ export default function DetailedDashboardPage() {
         throw new Error("Gagal memuat detail perangkat.");
       }
       const data = await res.json();
-      setDetail(data);
-      setLiveReadings(data.readings ?? []);
+      setDetail((prev) => ({
+        ...data,
+        latestRiskAssessment:
+          data.latestRiskAssessment ?? prev?.latestRiskAssessment ?? null,
+        latestAiPrediction:
+          data.latestAiPrediction ?? prev?.latestAiPrediction ?? null,
+      }));
+      setLiveReadings((prev) =>
+        hasReceivedFirstPayload.current && prev.length > 0
+          ? prev
+          : (data.readings ?? [])
+      );
+
+      if (!hasReceivedFirstPayload.current) {
+        if (typeof data.warmingUp === "boolean") {
+          setIsWarmingUp(data.warmingUp);
+          setSampleCount(data.sampleCount ?? (data.warmingUp ? 0 : 18));
+        } else if (data.latestAiPrediction || data.latestRiskAssessment) {
+          setIsWarmingUp(false);
+          setSampleCount(18);
+        }
+      }
 
       // Trigger alert if risk >= 2
       if ((data.latestRiskAssessment?.riskScore ?? 0) >= 2) {

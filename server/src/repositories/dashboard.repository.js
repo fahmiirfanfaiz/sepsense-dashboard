@@ -54,12 +54,14 @@ export const dashboardRepository = {
    * Ambil risk assessment terbaru dari sesi tertentu.
    */
   async findLatestRiskAssessmentForSession(sessionId) {
-    const reading = await db.orm.public.VitalReading.where({ sessionId: Number(sessionId) })
+    const readings = await db.orm.public.VitalReading.where({ sessionId: Number(sessionId) })
       .include("assessment")
       .orderBy((r) => r.recordedAt.desc())
-      .first();
+      .limit(25)
+      .all();
 
-    return reading?.assessment ?? null;
+    const withAssessment = readings.find((r) => r.assessment != null);
+    return withAssessment?.assessment ?? null;
   },
 
   /**

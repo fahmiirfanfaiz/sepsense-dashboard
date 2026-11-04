@@ -8,8 +8,26 @@ let socket = null;
 const activeDeviceSubscriptions = new Set();
 let isOverviewSubscribed = false;
 
-const SOCKET_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+function resolveSocketUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+  if (
+    process.env.NEXT_PUBLIC_API_BASE_URL &&
+    !process.env.NEXT_PUBLIC_API_BASE_URL.includes("localhost")
+  ) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "https://sepsense-backend.onrender.com"
+  );
+}
+
+const SOCKET_URL = resolveSocketUrl();
 
 /**
  * Mengembalikan instance socket yang sudah terautentikasi.

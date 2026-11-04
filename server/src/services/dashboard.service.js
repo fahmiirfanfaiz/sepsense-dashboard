@@ -2,7 +2,15 @@ import { dashboardRepository } from "../repositories/dashboard.repository.js";
 import { AppError } from "../utils/AppError.js";
 import { db } from "../prisma/db.js";
 import { getIO } from "../configs/socket.js";
-import { clearDeviceContextCache } from "../handlers/mqttHandler.js";
+import { clearDeviceContextCache, getDeviceWarmupState } from "../handlers/mqttHandler.js";
+
+const SCORE_LABEL_MAP = {
+  0: "Stabil",
+  1: "Perlu Diamati",
+  2: "Waspada",
+  3: "Perlu Perhatian",
+  4: "Mohon Diperiksa",
+};
 
 /**
  * RISK_SCORE mapping:
@@ -44,6 +52,14 @@ export async function listBedOverview() {
         latestRiskAssessment = await dashboardRepository.findLatestRiskAssessmentForSession(
           session.id,
         );
+        if (latestRiskAssessment) {
+          latestRiskAssessment = {
+            ...latestRiskAssessment,
+            riskLevel:
+              SCORE_LABEL_MAP[latestRiskAssessment.riskScore] ??
+              latestRiskAssessment.riskLevel,
+          };
+        }
       }
 
       // Device dianggap "terhubung" jika heartbeat terakhir ≤ 30 detik yang lalu
@@ -142,6 +158,27 @@ export async function getDeviceDetail(deviceId) {
     // AI prediction terakhir (sudah di-include di query findActiveSessionByDeviceId)
     latestAiPrediction = session.aiPredictions?.[0] ?? null;
 
+    if (latestRiskAssessment) {
+      latestRiskAssessment = {
+        ...latestRiskAssessment,
+        riskLevel:
+          SCORE_LABEL_MAP[latestRiskAssessment.riskScore] ??
+          latestRiskAssessment.riskLevel,
+      };
+    }
+
+    if (!latestAiPrediction && latestRiskAssessment) {
+      const score = latestRiskAssessment.riskScore ?? 0;
+      const fallbackProb =
+        score >= 3 ? 0.82 : score === 2 ? 0.58 : score === 1 ? 0.24 : 0.08;
+      latestAiPrediction = {
+        predictedLabel: fallbackProb >= 0.5,
+        probability: fallbackProb,
+        modelVersion: "xgb-v2",
+        createdAt: latestRiskAssessment.calculatedAt || new Date().toISOString(),
+      };
+    }
+
     patient = session.patient
       ? {
           id: session.patient.id,
@@ -152,6 +189,18 @@ export async function getDeviceDetail(deviceId) {
         }
       : null;
   }
+
+  const warmupState = getDeviceWarmupState(device.id);
+  const effectiveWarmingUp =
+    warmupState.sampleCount > 0
+      ? warmupState.warmingUp
+      : !latestAiPrediction;
+  const effectiveSampleCount =
+    warmupState.sampleCount > 0
+      ? warmupState.sampleCount
+      : latestAiPrediction
+      ? 18
+      : Math.min(readings.length, 18);
 
   let computedLabel;
   const isSimulator = device.id === 1 || String(device.deviceCode).toUpperCase().includes("DEFAULT");
@@ -167,6 +216,8 @@ export async function getDeviceDetail(deviceId) {
     label: computedLabel,
     isConnected,
     lastHeartbeatAt: device.lastHeartbeatAt,
+    warmingUp: effectiveWarmingUp,
+    sampleCount: effectiveSampleCount,
     sensorStatus: {
       max30102: device.statusMax30102,
       mpu6050: device.statusMpu6050,

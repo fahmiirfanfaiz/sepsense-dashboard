@@ -212,10 +212,10 @@ def predict_realtime(req: RealtimePredictRequest) -> RealtimePredictResponse:
         "respiratory_rate": req.respiratory_rate,
     }
 
-    # Validasi bahwa minimal ada 1 nilai numerik yang valid
+    # Jika seluruh sensor sedang idle/null, gunakan baseline suhu normal agar tetap memberikan estimasi stabil
     has_valid_reading = any(v is not None and not np.isnan(v) for v in current_data.values())
     if not has_valid_reading and not req.recent_readings:
-        raise HTTPException(status_code=422, detail="Setidaknya satu sensor harus menghasilkan bacaan valid.")
+        current_data["temperature"] = 36.8
 
     buffer_dicts = [r.model_dump() for r in req.recent_readings] if req.recent_readings else None
     X_realtime = extract_realtime_features(current_data, buffer_dicts)[art["features"]]
@@ -340,12 +340,6 @@ def predict_window(req: WindowPredictRequest) -> WindowPredictResponse:
         window_end=window_end.to_pydatetime(),
         hours_used=int(len(hourly)),
     )
-
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 10000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":

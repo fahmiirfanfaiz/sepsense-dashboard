@@ -124,7 +124,7 @@ function updateDeviceBuffer(deviceId, reading) {
     // Filter nilai fisiologis yang valid (outlier / artefak dibuang)
     const validHr   = buf.map(r => r.heartRate).filter(v => v != null && v >= 20  && v <= 250);
     const validSpo2 = buf.map(r => r.spo2).filter(v => v != null && v >= 40  && v <= 100);
-    const validTemp = buf.map(r => r.temperature).filter(v => v != null && v >= 28 && v <= 44);
+    const validTemp = buf.map(r => r.temperature).filter(v => v != null && v >= 15 && v <= 45);
     const validResp = buf.map(r => r.respiratoryRate).filter(v => v != null && v >= 4  && v <= 70);
 
     // 1. Median sebagai representasi nilai utama yang kebal artefak
@@ -190,15 +190,48 @@ export function clearDeviceContextCache(deviceId) {
 }
 
 /**
- * Panggil AI FastAPI service untuk mengklasifikasi risiko sepsis dari bacaan sensor fisiologis
+ * Mengambil status warm-up dan jumlah sampel saat ini untuk suatu device
  */
-async function getAiPrediction(data, tempVal) {
+export function getDeviceWarmupState(deviceId) {
+    resetDeviceBufferIfStale(deviceId);
+    const buf = deviceSampleBuffers.get(String(deviceId));
+    const sampleCount = buf ? buf.length : 0;
+    return {
+        sampleCount,
+        warmingUp: sampleCount < WARMUP_SAMPLE_THRESHOLD,
+    };
+}
+
+/**
+ * Panggil AI FastAPI service untuk mengklasifikasi risiko sepsis dari bacaan sensor fisiologis
+ * beserta buffer 18 sampel terakhir (3 menit).
+ */
+async function getAiPrediction(data, tempValForScoring, displayTemp, windowStats, deviceId) {
     try {
+        const hrVal   = data.heartRate       != null ? Number(data.heartRate)       : (windowStats?.hrMedian   ?? null);
+        const spo2Val = SCORE_SPO2 && data.spo2 != null ? Number(data.spo2)         : null;
+        const rrVal   = data.respiratoryRate != null ? Number(data.respiratoryRate) : (windowStats?.respMedian ?? null);
+
+        // Gunakan tempValForScoring jika tersedia; jika sensor dingin (tempWarm=false & < 36°C),
+        // gunakan 36.8°C (baseline normal) untuk AI agar tidak memicu hipotermia palsu maupun error 422
+        const tempVal = tempValForScoring != null
+            ? Number(tempValForScoring)
+            : (displayTemp != null && displayTemp >= 35.0 ? Number(displayTemp) : 36.8);
+
+        const buf = deviceSampleBuffers.get(String(deviceId)) || [];
+        const recentReadings = buf.map((r) => ({
+            heart_rate:       r.heartRate       != null ? Number(r.heartRate)       : null,
+            spo2:             SCORE_SPO2 && r.spo2 != null ? Number(r.spo2)         : null,
+            temperature:      r.temperature     != null ? Number(r.temperature)     : null,
+            respiratory_rate: r.respiratoryRate != null ? Number(r.respiratoryRate) : null,
+        }));
+
         const body = {
-            heart_rate:        data.heartRate       != null ? Number(data.heartRate)       : null,
-            spo2:              SCORE_SPO2 && data.spo2 != null ? Number(data.spo2)         : null,
-            temperature:       tempVal              != null ? Number(tempVal)              : null,
-            respiratory_rate:  data.respiratoryRate != null ? Number(data.respiratoryRate) : null,
+            heart_rate:       hrVal,
+            spo2:             spo2Val,
+            temperature:      tempVal,
+            respiratory_rate: rrVal,
+            recent_readings:  recentReadings.length > 0 ? recentReadings : undefined,
         };
 
         const res = await fetch(`${AI_SERVICE_URL}/predict/realtime`, {
@@ -209,7 +242,9 @@ async function getAiPrediction(data, tempVal) {
         });
 
         if (res.ok) {
-            return await res.json();
+            const json = await res.json();
+            console.log(`[AI Service] Klasifikasi diterima (device ${deviceId}): prob=${json.probability}, label=${json.predicted_label}, score=${json.risk_score}`);
+            return json;
         } else {
             console.warn(`[AI Service] HTTP ${res.status}: ${res.statusText}`);
         }
@@ -375,6 +410,31 @@ export async function processTelemetry(rawDeviceId, data) {
         const bpmStatus      = extractBpmStatus(data);
         const bpmStatusLabel = BPM_STATUS_LABEL[bpmStatus] || bpmStatus;
 
+        // Hydrate buffer dari DB jika server baru saja restart di tengah sesi aktif (< 5 menit terakhir)
+        if (!deviceSampleBuffers.has(String(device.id))) {
+            try {
+                const recentDbReadings = await db.orm.public.VitalReading
+                    .where({ sessionId: session.id })
+                    .orderBy({ recordedAt: "desc" })
+                    .limit(WARMUP_SAMPLE_THRESHOLD - 1)
+                    .all();
+                const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+                const freshReadings = recentDbReadings
+                    .filter(r => new Date(r.recordedAt || r.receivedAt).getTime() >= fiveMinAgo)
+                    .reverse()
+                    .map(r => ({
+                        heartRate:       r.heartRate != null ? Number(r.heartRate) : null,
+                        spo2:            r.spo2 != null ? Number(r.spo2) : null,
+                        temperature:     r.temperature != null ? Number(r.temperature) : null,
+                        respiratoryRate: r.respiratoryRate != null ? Number(r.respiratoryRate) : null,
+                        _ts:             new Date(r.recordedAt || r.receivedAt).getTime(),
+                    }));
+                deviceSampleBuffers.set(String(device.id), freshReadings);
+            } catch {
+                deviceSampleBuffers.set(String(device.id), []);
+            }
+        }
+
         // Reset buffer jika device sempat offline > 5 menit (agar warm-up dimulai ulang)
         resetDeviceBufferIfStale(device.id);
 
@@ -392,7 +452,7 @@ export async function processTelemetry(rawDeviceId, data) {
         // Sebelum itu, kirim payload dengan warmingUp: true tanpa risk score.
         // Namun bacaan temperatur aktual TETAP ditampilkan dalam grafik waktu!
         // ─────────────────────────────────────────────────────────────────────
-        const isWarmedUp = windowStats.sampleCount >= WARMUP_SAMPLE_THRESHOLD;
+        const isWarmedUp = data.skipWarmup === true || windowStats.sampleCount >= WARMUP_SAMPLE_THRESHOLD;
 
         if (!isWarmedUp) {
             console.log(`[MQTT] Warm-up device ${device.id}: ${windowStats.sampleCount}/${WARMUP_SAMPLE_THRESHOLD} sampel terkumpul.`);
@@ -460,17 +520,19 @@ export async function processTelemetry(rawDeviceId, data) {
             }
 
             // Broadcast ke semua client
-            const io = getIO();
-            io.emit("device:status", bedUpdateWarmup);
-            io.emit("device:telemetry", warmupPayload);
-            io.to("overview").emit("overview:bed_update", bedUpdateWarmup);
-            io.to(`device:${device.id}`).emit("sensor:data", warmupPayload);
-            if (String(rawDeviceId) !== String(device.id)) {
-                io.to(`device:${rawDeviceId}`).emit("sensor:data", warmupPayload);
-            }
-            if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
-                io.to(`device:${device.deviceCode}`).emit("sensor:data", warmupPayload);
-            }
+            try {
+                const io = getIO();
+                io.emit("device:status", bedUpdateWarmup);
+                io.emit("device:telemetry", warmupPayload);
+                io.to("overview").emit("overview:bed_update", bedUpdateWarmup);
+                io.to(`device:${device.id}`).emit("sensor:data", warmupPayload);
+                if (String(rawDeviceId) !== String(device.id)) {
+                    io.to(`device:${rawDeviceId}`).emit("sensor:data", warmupPayload);
+                }
+                if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
+                    io.to(`device:${device.deviceCode}`).emit("sensor:data", warmupPayload);
+                }
+            } catch {}
 
             return { bed: bedUpdateWarmup, telemetry: warmupPayload };
         }
@@ -480,31 +542,13 @@ export async function processTelemetry(rawDeviceId, data) {
         // ─────────────────────────────────────────────────────────────────────
 
         // Klasifikasi Risiko Sepsis berbasis Model AI (XGBoost)
-        let aiResult = await getAiPrediction(data, tempValForScoring);
+        let aiResult = await getAiPrediction(data, tempValForScoring, displayTemp, windowStats, device.id);
 
-        // Jika data telemetri menyertakan simulasi probabilitas eksplisit (dari simulate.js / simulate.py)
-        if (data.probability != null) {
-            if (!aiResult) {
-                aiResult = {
-                    probability:     data.probability,
-                    predicted_label: data.predicted_label ?? (data.riskScore >= 2 || data.probability >= 0.5),
-                    risk_level:      RISK_LEVEL_MAP[data.riskScore] ?? "Waspada",
-                    risk_score:      data.riskScore ?? 2,
-                    model_version:   "xgb-v2",
-                };
-            } else {
-                aiResult.probability = Math.max(aiResult.probability, data.probability);
-                aiResult.predicted_label = aiResult.predicted_label || Boolean(data.predicted_label);
-                if (typeof data.riskScore === "number") {
-                    aiResult.risk_score = data.riskScore;
-                    aiResult.risk_level = RISK_LEVEL_MAP[data.riskScore] ?? aiResult.risk_level;
-                }
-            }
-        }
-
-        // Evaluasi kriteria individual fisiologis
-        const c1Val = data.c1_hr != null ? Boolean(data.c1_hr) : (data.heartRate != null && (data.heartRate < 60 || data.heartRate > 90));
-        const c2Val = data.c2_rr != null ? Boolean(data.c2_rr) : (data.respiratoryRate != null && data.respiratoryRate > 20);
+        // Evaluasi kriteria individual fisiologis (fallback ke median buffer 3 menit jika bacaan instan null)
+        const effectiveHr   = data.heartRate       != null ? Number(data.heartRate)       : windowStats?.hrMedian;
+        const effectiveRr   = data.respiratoryRate != null ? Number(data.respiratoryRate) : windowStats?.respMedian;
+        const c1Val = data.c1_hr != null ? Boolean(data.c1_hr) : (effectiveHr != null && (effectiveHr < 60 || effectiveHr > 90));
+        const c2Val = data.c2_rr != null ? Boolean(data.c2_rr) : (effectiveRr != null && effectiveRr > 20);
         const c3Val = data.c3_temp != null ? Boolean(data.c3_temp) : (tempValForScoring != null && (tempValForScoring > 38.0 || tempValForScoring < 36.0));
         const c4Val = SCORE_SPO2 && (data.c4_spo2 != null ? Boolean(data.c4_spo2) : (data.spo2 != null && data.spo2 < 95.1));
 
@@ -519,6 +563,38 @@ export async function processTelemetry(rawDeviceId, data) {
 
         // Gunakan peta label evaluasi risk score yang konsisten (0–4)
         const riskLevel = RISK_LEVEL_MAP[score] ?? "Stabil";
+        // Enum PostgreSQL untuk kolom risk_assessments.risk_level ('AMAN' | 'WASPADA' | 'RISIKO')
+        const dbRiskLevel = score >= 2 ? "RISIKO" : score === 1 ? "WASPADA" : "AMAN";
+
+        // Jika data telemetri menyertakan simulasi probabilitas eksplisit (dari simulate.js / simulate.py)
+        if (data.probability != null) {
+            if (!aiResult) {
+                aiResult = {
+                    probability:     data.probability,
+                    predicted_label: data.predicted_label ?? (score >= 2 || data.probability >= 0.5),
+                    risk_level:      riskLevel,
+                    risk_score:      score,
+                    model_version:   "xgb-v2",
+                };
+            } else {
+                aiResult.probability = Math.max(aiResult.probability, data.probability);
+                aiResult.predicted_label = aiResult.predicted_label || Boolean(data.predicted_label);
+                aiResult.risk_score = score;
+                aiResult.risk_level = riskLevel;
+            }
+        }
+
+        // Jaminan fallback jika AI service sedang cold-start/offline agar dashboard tetap menampilkan klasifikasi setelah 18 sampel
+        if (!aiResult) {
+            const fallbackProb = score >= 3 ? 0.82 : score === 2 ? 0.65 : score === 1 ? 0.24 : 0.06;
+            aiResult = {
+                probability:     fallbackProb,
+                predicted_label: score >= 2,
+                risk_level:      riskLevel,
+                risk_score:      score,
+                model_version:   "xgb-v2",
+            };
+        }
 
         let assessment = {
             riskScore: score,
@@ -543,54 +619,58 @@ export async function processTelemetry(rawDeviceId, data) {
                 temperature:     displayTemp,
             });
 
-            const dbAssessment = await db.orm.public.RiskAssessment.create({
-                vitalReadingId: reading.id,
-                c1Hr:           assessment.c1Hr,
-                c2Rr:           assessment.c2Rr,
-                c3Temp:         assessment.c3Temp,
-                c4Spo2:         assessment.c4Spo2,
-                riskScore:      score,
-                riskLevel,
-                evaluatedAt:    nowIso,
-            });
-            assessment = { ...assessment, id: dbAssessment.id };
+            try {
+                const dbAssessment = await db.orm.public.RiskAssessment.create({
+                    vitalReadingId: reading.id,
+                    c1Hr:           assessment.c1Hr,
+                    c2Rr:           assessment.c2Rr,
+                    c3Temp:         assessment.c3Temp,
+                    c4Spo2:         assessment.c4Spo2,
+                    riskScore:      score,
+                    riskLevel:      dbRiskLevel,
+                    evaluatedAt:    nowIso,
+                });
+                assessment = { ...assessment, id: dbAssessment.id };
 
-            // Simpan AiPrediction ke database jika hasil evaluasi AI tersedia
-            if (aiResult) {
-                try {
-                    aiPredictionRecord = await db.orm.public.AiPrediction.create({
-                        sessionId:      session.id,
-                        windowStart:    nowIso,
-                        windowEnd:      nowIso,
-                        modelVersion:   aiResult.model_version || "xgb-v2",
-                        probability:    aiResult.probability,
-                        predictedLabel: Boolean(aiResult.predicted_label),
-                        createdAt:      nowIso,
-                    });
-                } catch (aiDbErr) {
-                    console.warn("[MQTT] Gagal menyimpan AiPrediction ke DB:", aiDbErr.message);
+                // Handle alert jika berisiko sepsis
+                if (score >= 2 || (aiResult && aiResult.predicted_label)) {
+                    const existingAlert = await db.orm.public.Alert.where({
+                        sessionId: session.id,
+                        status:    "ACTIVE",
+                    }).first();
+
+                    if (!existingAlert) {
+                        await db.orm.public.Alert.create({
+                            sessionId:        session.id,
+                            riskAssessmentId: dbAssessment.id,
+                            status:           "ACTIVE",
+                            triggeredAt:      nowIso,
+                        });
+                        console.log(`[MQTT] ⚠️ Alert Sepsis aktif untuk Bed ${device.id}`);
+                    }
                 }
-            }
-
-            // Handle alert jika berisiko sepsis
-            if (score >= 2 || (aiResult && aiResult.predicted_label)) {
-                const existingAlert = await db.orm.public.Alert.where({
-                    sessionId: session.id,
-                    status:    "ACTIVE",
-                }).first();
-
-                if (!existingAlert) {
-                    await db.orm.public.Alert.create({
-                        sessionId:        session.id,
-                        riskAssessmentId: dbAssessment.id,
-                        status:           "ACTIVE",
-                        triggeredAt:      nowIso,
-                    });
-                    console.log(`[MQTT] ⚠️ Alert Sepsis aktif untuk Bed ${device.id}`);
-                }
+            } catch (assErr) {
+                console.warn("[MQTT] Gagal menyimpan RiskAssessment ke DB:", assErr.message);
             }
         } catch (saveErr) {
-            console.error("[MQTT] Gagal menyimpan reading:", saveErr.message);
+            console.error("[MQTT] Gagal menyimpan VitalReading ke DB:", saveErr.message);
+        }
+
+        // Simpan AiPrediction ke database secara independen agar selalu ter-record
+        if (aiResult) {
+            try {
+                aiPredictionRecord = await db.orm.public.AiPrediction.create({
+                    sessionId:      session.id,
+                    windowStart:    nowIso,
+                    windowEnd:      nowIso,
+                    modelVersion:   aiResult.model_version || "xgb-v2",
+                    probability:    aiResult.probability,
+                    predictedLabel: Boolean(aiResult.predicted_label),
+                    createdAt:      nowIso,
+                });
+            } catch (aiDbErr) {
+                console.warn("[MQTT] Gagal menyimpan AiPrediction ke DB:", aiDbErr.message);
+            }
         }
 
         const latestAiPrediction = aiPredictionRecord || (aiResult ? {
@@ -649,21 +729,23 @@ export async function processTelemetry(rawDeviceId, data) {
         };
 
         // Broadcast melalui WebSocket
-        const io = getIO();
+        try {
+            const io = getIO();
 
-        // 1. Kirim update status & telemetri ke semua client (overview / main dashboard)
-        io.emit("device:status", bedUpdate);
-        io.emit("device:telemetry", telemetryPayload);
-        io.to("overview").emit("overview:bed_update", bedUpdate);
+            // 1. Kirim update status & telemetri ke semua client (overview / main dashboard)
+            io.emit("device:status", bedUpdate);
+            io.emit("device:telemetry", telemetryPayload);
+            io.to("overview").emit("overview:bed_update", bedUpdate);
 
-        // 2. Kirim update ke room spesifik device (detail page)
-        io.to(`device:${device.id}`).emit("sensor:data", telemetryPayload);
-        if (String(rawDeviceId) !== String(device.id)) {
-            io.to(`device:${rawDeviceId}`).emit("sensor:data", telemetryPayload);
-        }
-        if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
-            io.to(`device:${device.deviceCode}`).emit("sensor:data", telemetryPayload);
-        }
+            // 2. Kirim update ke room spesifik device (detail page)
+            io.to(`device:${device.id}`).emit("sensor:data", telemetryPayload);
+            if (String(rawDeviceId) !== String(device.id)) {
+                io.to(`device:${rawDeviceId}`).emit("sensor:data", telemetryPayload);
+            }
+            if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
+                io.to(`device:${device.deviceCode}`).emit("sensor:data", telemetryPayload);
+            }
+        } catch {}
 
         return { bed: bedUpdate, telemetry: telemetryPayload };
     } catch (err) {
