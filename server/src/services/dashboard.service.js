@@ -1,6 +1,6 @@
 import { dashboardRepository } from "../repositories/dashboard.repository.js";
 import { AppError } from "../utils/AppError.js";
-import { db } from "../prisma/db.ts";
+import { db } from "../prisma/db.js";
 import { getIO } from "../configs/socket.js";
 import { clearDeviceContextCache } from "../handlers/mqttHandler.js";
 

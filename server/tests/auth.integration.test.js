@@ -9,7 +9,7 @@ import http from "node:http";
 import { after, before, test } from "node:test";
 
 const { createApp } = await import("../src/app.js");
-const { db } = await import("../src/prisma/db.ts");
+const { db } = await import("../src/prisma/db.js");
 
 const REFRESH_COOKIE_NAME = "sepsense_refresh_token";
 const TEST_PASSWORD = "TestPassword123";

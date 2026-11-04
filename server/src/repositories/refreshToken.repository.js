@@ -1,4 +1,4 @@
-import { db } from "../prisma/db.ts";
+import { db } from "../prisma/db.js";
 
 export const refreshTokenRepository = {
   create({ userId, tokenHash, expiresAt }) {

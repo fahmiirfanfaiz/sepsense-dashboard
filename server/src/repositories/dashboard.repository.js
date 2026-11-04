@@ -1,4 +1,4 @@
-import { db } from "../prisma/db.ts";
+import { db } from "../prisma/db.js";
 
 /**
  * Mengembalikan semua sesi monitoring yang sedang aktif (endedAt IS NULL)

@@ -6,7 +6,7 @@ import { env } from "./configs/env.js";
 import { initSocket } from "./configs/socket.js";
 import { registerMqttHandler } from "./handlers/mqttHandler.js";
 import { registerSocketHandler } from "./handlers/socketHandler.js";
-import { db } from "./prisma/db.ts";
+import { db } from "./prisma/db.js";
 
 const app = createApp();
 

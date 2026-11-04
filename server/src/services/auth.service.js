@@ -1,6 +1,6 @@
 import { ROLE_TO_DB } from "../configs/constants.js";
 import { env } from "../configs/env.js";
-import { db } from "../prisma/db.ts";
+import { db } from "../prisma/db.js";
 import { refreshTokenRepository } from "../repositories/refreshToken.repository.js";
 import { userRepository } from "../repositories/user.repository.js";
 import { AppError } from "../utils/AppError.js";

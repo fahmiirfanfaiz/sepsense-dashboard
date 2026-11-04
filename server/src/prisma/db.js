@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import postgres from '@prisma/orm-postgres/runtime';
 import { contractFromJson } from '@prisma/orm-postgres/static';
-import type { Contract } from './contract.d';
 import contractJson from './contract.json' with { type: 'json' };
 
-export const contract = contractFromJson<Contract>(contractJson);
+/** @type {import('./contract.d').Contract} */
+export const contract = contractFromJson(contractJson);
 
 export const db = postgres({
   contract,
-  url: process.env['DATABASE_URL']!,
+  url: process.env['DATABASE_URL'],
 });

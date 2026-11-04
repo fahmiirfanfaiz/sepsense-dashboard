@@ -1,5 +1,5 @@
 import { getIO } from "../configs/socket.js";
-import { db } from "../prisma/db.ts";
+import { db } from "../prisma/db.js";
 
 // Cache in-memory untuk konteks device & session agar meminimalisir overhead database
 const deviceContextCache = new Map();
