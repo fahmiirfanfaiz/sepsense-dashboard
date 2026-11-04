@@ -10,3 +10,4 @@ export const db = postgres({
   contract,
   url: process.env['DATABASE_URL'],
 });
+
