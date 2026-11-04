@@ -8,6 +8,7 @@ const deviceContextCache = new Map();
 const deviceSampleBuffers = new Map();
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
+const AI_SERVICE_TIMEOUT_MS = Number(process.env.AI_SERVICE_TIMEOUT_MS) || 5000;
 
 // SpO2 dari firmware v4.5 adalah ESTIMASI. false = hanya ditampilkan, tidak masuk skor dan tidak dikirim ke AI.
 const SCORE_SPO2 = false;
@@ -204,14 +205,17 @@ async function getAiPrediction(data, tempVal) {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body:    JSON.stringify(body),
-            signal:  AbortSignal.timeout(1500),
+            signal:  AbortSignal.timeout(AI_SERVICE_TIMEOUT_MS),
         });
 
         if (res.ok) {
             return await res.json();
+        } else {
+            console.warn(`[AI Service] HTTP ${res.status}: ${res.statusText}`);
         }
-    } catch {
-        // Fallback gracefully jika AI service offline
+    } catch (err) {
+        // Fallback gracefully jika AI service offline atau timeout
+        console.warn(`[AI Service] Gagal menghubungi AI service: ${err.message}`);
     }
     return null;
 }
