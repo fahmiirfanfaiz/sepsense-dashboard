@@ -183,8 +183,8 @@ function CreateBedModal({ isOpen, onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-6 space-y-4">
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-border shadow-xl p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-border/50">
           <div className="flex items-center gap-2">
             <Bed className="w-5 h-5 text-[#4BB43A]" />
@@ -305,8 +305,8 @@ function EditBedModal({ isOpen, onClose, bed, onUpdated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-xl p-6 space-y-4">
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-border shadow-xl p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-border/50">
           <div className="flex items-center gap-2">
             <Pencil className="w-4 h-4 text-[#4BB43A]" />
@@ -519,14 +519,95 @@ function BedRow({ bed, index, onDetail, onEdit, onDelete }) {
 }
 
 // ──────────────────────────────────────────────
+// Bed Card — tampilan mobile (< md) sebagai pengganti baris tabel
+// ──────────────────────────────────────────────
+function BedCard({ bed, onDetail, onEdit, onDelete }) {
+  const riskScore = bed.latestRiskAssessment?.riskScore ?? null;
+  const warmingUp = bed.warmingUp === true;
+  const cfg = warmingUp ? getRiskConfig(null) : getRiskConfig(riskScore);
+
+  return (
+    <div className={cn("p-4 space-y-3 border-b border-border/50 last:border-0", cfg.rowBg)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div
+            className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+              bed.isConnected
+                ? "bg-[#4BB43A]/10 text-[#4BB43A]"
+                : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500",
+            )}
+          >
+            <Bed className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-sm font-semibold font-poppins text-foreground">{bed.label}</p>
+              <span className="text-[10px] font-mono px-1.5 rounded bg-muted text-muted-foreground border border-border/40 truncate max-w-[120px]">
+                {bed.deviceCode}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground font-inter mt-0.5 truncate">
+              {bed.patient?.name ?? <span className="italic">Belum ada pasien</span>}
+              {bed.patient?.roomBed ? ` · ${bed.patient.roomBed}` : ""}
+            </p>
+            <span className="inline-block mt-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded border border-emerald-200 dark:border-emerald-800">
+              Sesi #{bed.session?.id ?? "—"}
+            </span>
+          </div>
+        </div>
+        <div
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border",
+            bed.isConnected
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400"
+              : "bg-zinc-100 border-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:border-zinc-700",
+          )}
+        >
+          {bed.isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+          {bed.isConnected ? "Aktif" : "Offline"}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <RiskBadge riskScore={riskScore} warmingUp={warmingUp} />
+        <div className="flex items-center gap-1.5">
+          <button
+            aria-label="Edit bed"
+            onClick={() => onEdit(bed)}
+            className="p-2 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-95"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            aria-label="Hapus bed"
+            onClick={() => onDelete(bed)}
+            className="p-2 rounded-lg border border-border/60 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950/40 text-muted-foreground hover:text-red-600 transition-all active:scale-95"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onDetail(bed.deviceId)}
+            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-lg bg-[#1A1A2E] hover:bg-[#1A2744] text-white text-xs font-semibold font-inter transition-all active:scale-95"
+          >
+            Detail
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Summary Cards
 // ──────────────────────────────────────────────
 function SummaryCard({ label, value, sub, colorClass }) {
   return (
-    <div className="bg-card rounded-xl px-5 py-4 border border-border/60 shadow-sm flex flex-col gap-1">
-      <p className="text-xs font-inter text-muted-foreground">{label}</p>
-      <p className={cn("text-2xl font-bold font-poppins", colorClass)}>{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground font-inter">{sub}</p>}
+    <div className="bg-card rounded-xl px-3 py-3 sm:px-5 sm:py-4 border border-border/60 shadow-sm flex flex-col gap-0.5 sm:gap-1 min-w-0">
+      <p className="text-[11px] sm:text-xs font-inter text-muted-foreground truncate">{label}</p>
+      <p className={cn("text-xl sm:text-2xl font-bold font-poppins", colorClass)}>{value}</p>
+      {sub && <p className="text-[10px] sm:text-[11px] text-muted-foreground font-inter hidden sm:block">{sub}</p>}
     </div>
   );
 }
@@ -772,18 +853,18 @@ export default function MainDashboard() {
         />
       }
     >
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-3 sm:p-5 lg:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold font-poppins text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold font-poppins text-foreground">
               Main Dashboard
             </h1>
-            <p className="text-sm text-muted-foreground font-inter mt-0.5">
+            <p className="text-xs sm:text-sm text-muted-foreground font-inter mt-0.5">
               Monitoring realtime seluruh pasien yang terhubung perangkat Sepsense
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <div
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-inter border transition-colors",
@@ -814,7 +895,7 @@ export default function MainDashboard() {
         </div>
 
         {/* Summary Cards — 3 Cards: Total Bed, Kondisi Stabil (Skor 0-1), Waspada / Periksa (Skor >= 2) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <SummaryCard
             label="Total Bed"
             value={totalBeds}
@@ -849,7 +930,7 @@ export default function MainDashboard() {
         {/* Beds Table */}
         <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
           {/* Table Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-4 border-b border-border/50">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[#4BB43A]" />
               <h2 className="text-sm font-semibold font-poppins text-foreground">
@@ -902,7 +983,22 @@ export default function MainDashboard() {
           )}
 
           {!loading && !error && (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: daftar kartu */}
+              <div className="md:hidden">
+                {beds.map((bed) => (
+                  <BedCard
+                    key={bed.deviceId}
+                    bed={bed}
+                    onDetail={(deviceId) => router.push(`/dashboard/${deviceId}`)}
+                    onEdit={(b) => setEditingBed(b)}
+                    onDelete={handleDeleteBed}
+                  />
+                ))}
+              </div>
+
+              {/* Tablet & Desktop: tabel */}
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/40">
@@ -941,7 +1037,8 @@ export default function MainDashboard() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>

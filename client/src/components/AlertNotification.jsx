@@ -112,7 +112,7 @@ function AlertToast({ alert, onDismiss }) {
       role="alert"
       aria-live="assertive"
       className={cn(
-        "flex items-start gap-3 w-[360px] rounded-xl border px-4 py-3 shadow-lg transition-all duration-300",
+        "relative flex items-start gap-3 w-full sm:w-[360px] rounded-xl border px-4 py-3 shadow-lg transition-all duration-300",
         config.bg,
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
       )}
@@ -181,7 +181,7 @@ export default function AlertNotificationStack({ alerts = [] }) {
   return (
     <div
       aria-label="Notifikasi peringatan"
-      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 items-end"
+      className="fixed bottom-3 left-3 right-3 sm:left-auto sm:bottom-5 sm:right-5 z-[60] flex flex-col gap-2.5 items-stretch sm:items-end"
     >
       {visible.slice(0, 5).map((alert) => (
         <AlertToast key={alert.id} alert={alert} onDismiss={dismiss} />

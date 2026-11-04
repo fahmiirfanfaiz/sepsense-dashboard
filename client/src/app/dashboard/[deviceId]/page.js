@@ -830,31 +830,31 @@ export default function DetailedDashboardPage() {
         />
       }
     >
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-3 sm:p-5 lg:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Page Header */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/")}
-            className="w-8 h-8 rounded-lg bg-card border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm"
+            className="w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-lg bg-card border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm"
             aria-label="Kembali ke dashboard"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div>
-            <h1 className="text-xl font-bold font-poppins text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold font-poppins text-foreground truncate">
               {detail?.label ?? `Device ${deviceId}`}
             </h1>
-            <p className="text-xs text-muted-foreground font-inter mt-0.5">
+            <p className="text-[11px] sm:text-xs text-muted-foreground font-inter mt-0.5 break-words">
               Kode: {detail?.deviceCode ?? "—"} &nbsp;·&nbsp; Sesi ID: {detail?.session?.id ?? "Tidak ada sesi aktif"}
             </p>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <Cpu className="w-5 h-5 text-muted-foreground" />
           </div>
         </div>
 
         {/* Top Info Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Full Patient CRUD Editor */}
           <PatientEditor
             deviceId={deviceId}
@@ -894,7 +894,7 @@ export default function DetailedDashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div>
                 <span className="text-muted-foreground text-[10px] uppercase font-mono block">Stabilitas Sinyal</span>
                 <span className={cn("font-bold text-sm", latestWindowStats.stabilityScore >= 70 ? "text-emerald-600" : "text-amber-500")}>

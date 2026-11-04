@@ -43,7 +43,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-[480px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] px-8 py-10 flex flex-col items-center">
+    <div className="w-full max-w-[480px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] px-5 py-8 sm:px-8 sm:py-10 flex flex-col items-center">
       {/* Logo */}
       <div className="mb-6 flex items-center justify-center">
         <Image

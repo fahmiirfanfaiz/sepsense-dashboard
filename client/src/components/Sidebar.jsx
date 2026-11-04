@@ -9,6 +9,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  X,
   User,
   Stethoscope,
   FlaskConical,
@@ -38,8 +39,10 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed: collapsedProp = false, onToggle, mobile = false, onClose }) {
   const pathname = usePathname();
+  // Pada drawer mobile sidebar selalu tampil penuh
+  const collapsed = mobile ? false : collapsedProp;
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         "flex flex-col h-full transition-all duration-300 ease-in-out select-none",
         "bg-gradient-to-b from-[#0F172A] to-[#1A2744]",
         "border-r border-white/[0.06]",
-        collapsed ? "w-[68px]" : "w-64",
+        mobile ? "w-full" : collapsed ? "w-[68px]" : "w-64",
       )}
     >
       {/* Logo / Brand */}
@@ -165,18 +168,28 @@ export default function Sidebar({ collapsed, onToggle }) {
         </button>
       </div>
 
-      {/* Collapse Toggle */}
-      <button
-        onClick={onToggle}
-        className="absolute top-[72px] -right-3 w-6 h-6 rounded-full bg-[#1A2744] border border-white/10 text-white/60 hover:text-white hover:border-white/30 flex items-center justify-center transition-all shadow-md z-10"
-        aria-label={collapsed ? "Buka sidebar" : "Tutup sidebar"}
-      >
-        {collapsed ? (
-          <ChevronRight className="w-3.5 h-3.5" />
-        ) : (
-          <ChevronLeft className="w-3.5 h-3.5" />
-        )}
-      </button>
+      {/* Collapse Toggle (desktop) / Close (mobile drawer) */}
+      {mobile ? (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-3 w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all z-10"
+          aria-label="Tutup menu"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      ) : (
+        <button
+          onClick={onToggle}
+          className="absolute top-[72px] -right-3 w-6 h-6 rounded-full bg-[#1A2744] border border-white/10 text-white/60 hover:text-white hover:border-white/30 flex items-center justify-center transition-all shadow-md z-10"
+          aria-label={collapsed ? "Buka sidebar" : "Tutup sidebar"}
+        >
+          {collapsed ? (
+            <ChevronRight className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronLeft className="w-3.5 h-3.5" />
+          )}
+        </button>
+      )}
     </aside>
   );
 }

@@ -309,7 +309,7 @@ export default function SensorChart({
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 flex flex-col gap-3">
+    <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-4 sm:p-5 flex flex-col gap-3 min-w-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
