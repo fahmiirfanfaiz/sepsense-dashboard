@@ -9,6 +9,9 @@ const deviceSampleBuffers = new Map();
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
 
+// SpO2 dari firmware v4.5 adalah ESTIMASI. false = hanya ditampilkan, tidak masuk skor dan tidak dikirim ke AI.
+const SCORE_SPO2 = false;
+
 // Jumlah sampel minimum sebelum klasifikasi risiko dapat dilakukan (3 menit = 18 sampel)
 const WARMUP_SAMPLE_THRESHOLD = 18;
 
@@ -35,6 +38,18 @@ const RISK_LEVEL_MAP = {
     3: "Perlu Perhatian",
     4: "Mohon Diperiksa",
 };
+
+/**
+ * Daftar status sinyal yang benar-benar rusak/noise (black-list).
+ * Hanya jika data.signal eksplisit berupa salah satu dari status ini,
+ * sensor reading diabaikan. Jika bernilai OK, BAIK, CONNECTED, NORMAL, dsb,
+ * maka bacaan sensor TETAP DIJALANKAN.
+ */
+const EXPLICIT_BAD_SIGNALS = new Set([
+    "MOTION", "LEMAH", "NOFINGER", "NO_FINGER", "WAIT", "WAITING",
+    "SATURASI", "SATURATED", "TIDAK_MENEMPEL", "SINYAL_JENUH", "GERAK",
+    "SINYAL_LEMAH", "DISCONNECTED", "OFF"
+]);
 
 /**
  * Ekstrak dan normalisasi status gerakan BPM dari payload hardware.
@@ -131,7 +146,7 @@ function updateDeviceBuffer(deviceId, reading) {
         stabilityScore,
         hrMedian:    hrMedian   != null ? Math.round(hrMedian)        : null,
         spo2Median:  spo2Median != null ? Math.round(spo2Median)      : null,
-        tempMedian:  tempMedian != null ? +tempMedian.toFixed(1)      : null,
+        tempMedian:  tempMedian != null ? +tempMedian.toFixed(2)      : null,
         respMedian:  respMedian != null ? Math.round(respMedian)      : null,
         hrVariability: +hrVariability.toFixed(2),
         hrTrend:       +hrTrend.toFixed(2),
@@ -180,7 +195,7 @@ async function getAiPrediction(data, tempVal) {
     try {
         const body = {
             heart_rate:        data.heartRate       != null ? Number(data.heartRate)       : null,
-            spo2:              data.spo2             != null ? Number(data.spo2)             : null,
+            spo2:              SCORE_SPO2 && data.spo2 != null ? Number(data.spo2)         : null,
             temperature:       tempVal              != null ? Number(tempVal)              : null,
             respiratory_rate:  data.respiratoryRate != null ? Number(data.respiratoryRate) : null,
         };
@@ -216,7 +231,7 @@ export async function getOrCreateDeviceContext(rawDeviceId, data) {
     const deviceIdNum = Number(rawDeviceId);
     const hasNumericId = !isNaN(deviceIdNum);
 
-    // 1. Cari Device di database
+    // 1. Cari Device di database (numeric ID atau deviceCode)
     let device = null;
     if (hasNumericId) {
         device = await db.orm.public.Device.where({ id: deviceIdNum }).first();
@@ -301,10 +316,21 @@ export async function getOrCreateDeviceContext(rawDeviceId, data) {
 
 export async function processTelemetry(rawDeviceId, data) {
     try {
+        // Sinyal buruk (MOTION, LEMAH, NOFINGER, WAIT, SATURASI, dst):
+        // Hanya null-kan HR, RR, SpO2 jika eksplisit terdeteksi sinyal noise/lepas
+        const rawSignal = String(data.signal || data.motionStatus || data.motion || "").trim().toUpperCase();
+        if (EXPLICIT_BAD_SIGNALS.has(rawSignal)) {
+            data = { ...data, heartRate: null, respiratoryRate: null, spo2: null };
+        }
+
         const nowIso = new Date().toISOString();
         const now    = Date.now();
 
-        console.log(`[Telemetry] Data diterima dari device: ${rawDeviceId} | temp: ${data.temperature ?? data.objectTemp} | risk: ${data.riskScore}`);
+        // Ambil bacaan temperatur aktual (float dengan presisi asli dari MLX90614)
+        const rawTemp = data.temperature ?? data.objectTemp ?? data.temp ?? null;
+        const displayTemp = rawTemp != null && !isNaN(Number(rawTemp)) ? Number(Number(rawTemp).toFixed(2)) : null;
+
+        console.log(`[Telemetry] Data diterima dari device: ${rawDeviceId} | temp: ${displayTemp} | HR: ${data.heartRate} | RR: ${data.respiratoryRate} | SpO2: ${data.spo2}`);
 
         // Ambil konteks device dan session
         const context = await getOrCreateDeviceContext(rawDeviceId, data);
@@ -313,7 +339,7 @@ export async function processTelemetry(rawDeviceId, data) {
         // Hitung status sensor berdasarkan data
         const statusMax30102 = Boolean(data.heartRate != null || data.spo2 != null || (data.hrConf && data.hrConf > 0) || (data.signal && data.signal !== "DISCONNECTED"));
         const statusMpu6050  = Boolean(data.respiratoryRate != null || (data.rrConf && data.rrConf > 0));
-        const statusMlx90614 = Boolean(data.temperature != null || data.objectTemp != null || data.ambientTemp != null);
+        const statusMlx90614 = Boolean(displayTemp != null || data.ambientTemp != null);
 
         // Update heartbeat di database setiap minimal 3 detik untuk efisiensi
         if (now - context.lastDbUpdate > 3_000) {
@@ -334,7 +360,11 @@ export async function processTelemetry(rawDeviceId, data) {
             }
         }
 
-        const tempVal    = data.temperature ?? data.objectTemp ?? null;
+        // Suhu untuk scoring SIRS: jika tempWarm=false, jangan picu hipotermia palsu saat sensor dingin
+        const tempValForScoring = data.tempWarm === false
+            ? (displayTemp != null && displayTemp >= 36.0 ? displayTemp : null)
+            : displayTemp;
+
         const recordedAt = data.tsMs ? new Date(data.tsMs).toISOString() : nowIso;
 
         // Ekstrak status gerakan BPM dari payload hardware
@@ -346,16 +376,17 @@ export async function processTelemetry(rawDeviceId, data) {
 
         // Perbarui buffer sampel 3 menit dan hitung statistik median
         const windowStats = updateDeviceBuffer(device.id, {
-            heartRate:       data.heartRate,
-            spo2:            data.spo2,
-            temperature:     tempVal,
-            respiratoryRate: data.respiratoryRate,
+            heartRate:       data.heartRate != null ? Number(data.heartRate) : null,
+            spo2:            data.spo2 != null ? Number(data.spo2) : null,
+            temperature:     displayTemp,
+            respiratoryRate: data.respiratoryRate != null ? Number(data.respiratoryRate) : null,
         });
 
         // ─────────────────────────────────────────────────────────────────────
         // WARM-UP GATE: Klasifikasi risiko HANYA dilakukan setelah 3 menit
         // (18 sampel x 10 detik) terkumpul sejak device terhubung ke backend.
         // Sebelum itu, kirim payload dengan warmingUp: true tanpa risk score.
+        // Namun bacaan temperatur aktual TETAP ditampilkan dalam grafik waktu!
         // ─────────────────────────────────────────────────────────────────────
         const isWarmedUp = windowStats.sampleCount >= WARMUP_SAMPLE_THRESHOLD;
 
@@ -388,9 +419,11 @@ export async function processTelemetry(rawDeviceId, data) {
             };
 
             const warmupPayload = {
-                deviceId:        device.id,
                 ...data,
-                temperature:     tempVal,
+                deviceId:        device.id,
+                deviceCode:      device.deviceCode,
+                rawDeviceId:     String(rawDeviceId),
+                temperature:     displayTemp,
                 recordedAt,
                 isConnected:     true,
                 lastHeartbeatAt: nowIso,
@@ -413,10 +446,10 @@ export async function processTelemetry(rawDeviceId, data) {
                     sessionId:       session.id,
                     recordedAt,
                     receivedAt:      nowIso,
-                    heartRate:       data.heartRate       ?? null,
-                    respiratoryRate: data.respiratoryRate ?? null,
-                    spo2:            data.spo2            ?? null,
-                    temperature:     tempVal,
+                    heartRate:       data.heartRate       != null ? Number(data.heartRate)       : null,
+                    respiratoryRate: data.respiratoryRate != null ? Number(data.respiratoryRate) : null,
+                    spo2:            data.spo2            != null ? Number(data.spo2)            : null,
+                    temperature:     displayTemp,
                 });
             } catch (saveErr) {
                 console.warn("[MQTT] Gagal menyimpan VitalReading saat warm-up:", saveErr.message);
@@ -431,6 +464,9 @@ export async function processTelemetry(rawDeviceId, data) {
             if (String(rawDeviceId) !== String(device.id)) {
                 io.to(`device:${rawDeviceId}`).emit("sensor:data", warmupPayload);
             }
+            if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
+                io.to(`device:${device.deviceCode}`).emit("sensor:data", warmupPayload);
+            }
 
             return { bed: bedUpdateWarmup, telemetry: warmupPayload };
         }
@@ -440,7 +476,7 @@ export async function processTelemetry(rawDeviceId, data) {
         // ─────────────────────────────────────────────────────────────────────
 
         // Klasifikasi Risiko Sepsis berbasis Model AI (XGBoost)
-        let aiResult = await getAiPrediction(data, tempVal);
+        let aiResult = await getAiPrediction(data, tempValForScoring);
 
         // Jika data telemetri menyertakan simulasi probabilitas eksplisit (dari simulate.js / simulate.py)
         if (data.probability != null) {
@@ -465,18 +501,17 @@ export async function processTelemetry(rawDeviceId, data) {
         // Evaluasi kriteria individual fisiologis
         const c1Val = data.c1_hr != null ? Boolean(data.c1_hr) : (data.heartRate != null && (data.heartRate < 60 || data.heartRate > 90));
         const c2Val = data.c2_rr != null ? Boolean(data.c2_rr) : (data.respiratoryRate != null && data.respiratoryRate > 20);
-        const c3Val = data.c3_temp != null ? Boolean(data.c3_temp) : (tempVal != null && (tempVal > 38.0 || tempVal < 36.0));
-        const c4Val = data.c4_spo2 != null ? Boolean(data.c4_spo2) : (data.spo2 != null && data.spo2 < 95.1);
+        const c3Val = data.c3_temp != null ? Boolean(data.c3_temp) : (tempValForScoring != null && (tempValForScoring > 38.0 || tempValForScoring < 36.0));
+        const c4Val = SCORE_SPO2 && (data.c4_spo2 != null ? Boolean(data.c4_spo2) : (data.spo2 != null && data.spo2 < 95.1));
 
         // Fallback SIRS rule jika AI service tidak dapat dijangkau
         const sirsScore = (c1Val ? 1 : 0) + (c2Val ? 1 : 0) + (c3Val ? 1 : 0) + (c4Val ? 1 : 0);
         
-        // Risk score secara ketat dan konsisten mengikuti jumlah kriteria abnormal (0 - 4):
-        // Jika data simulasi mengirimkan riskScore eksplisit, gunakan nilai tersebut.
-        // Jika tidak, gunakan skor SIRS yang dihitung dari 4 kriteria fisiologis.
-        const score = typeof data.riskScore === "number"
-            ? data.riskScore
-            : (aiResult?.risk_score ?? sirsScore);
+        // Risk score secara ketat dan konsisten mengikuti kriteria aktif (0 - 3 jika SCORE_SPO2 false):
+        // Jika SCORE_SPO2 false, SpO2 tidak masuk skor; gunakan sirsScore murni dari HR, RR, dan Temp.
+        const score = SCORE_SPO2
+            ? (typeof data.riskScore === "number" ? data.riskScore : (aiResult?.risk_score ?? sirsScore))
+            : sirsScore;
 
         // Gunakan peta label evaluasi risk score yang konsisten (0–4)
         const riskLevel = RISK_LEVEL_MAP[score] ?? "Stabil";
@@ -487,7 +522,7 @@ export async function processTelemetry(rawDeviceId, data) {
             c1Hr:       aiResult?.criteria ? aiResult.criteria.c1_hr   : c1Val,
             c2Rr:       aiResult?.criteria ? aiResult.criteria.c2_rr   : c2Val,
             c3Temp:     aiResult?.criteria ? aiResult.criteria.c3_temp : c3Val,
-            c4Spo2:     aiResult?.criteria ? aiResult.criteria.c4_spo2 : c4Val,
+            c4Spo2:     SCORE_SPO2 ? (aiResult?.criteria ? aiResult.criteria.c4_spo2 : c4Val) : false,
             evaluatedAt: nowIso,
         };
 
@@ -498,10 +533,10 @@ export async function processTelemetry(rawDeviceId, data) {
                 sessionId:       session.id,
                 recordedAt,
                 receivedAt:      nowIso,
-                heartRate:       data.heartRate       ?? null,
-                respiratoryRate: data.respiratoryRate ?? null,
-                spo2:            data.spo2            ?? null,
-                temperature:     tempVal,
+                heartRate:       data.heartRate       != null ? Number(data.heartRate)       : null,
+                respiratoryRate: data.respiratoryRate != null ? Number(data.respiratoryRate) : null,
+                spo2:            data.spo2            != null ? Number(data.spo2)            : null,
+                temperature:     displayTemp,
             });
 
             const dbAssessment = await db.orm.public.RiskAssessment.create({
@@ -587,9 +622,11 @@ export async function processTelemetry(rawDeviceId, data) {
         };
 
         const telemetryPayload = {
-            deviceId:        device.id,
             ...data,
-            temperature:     tempVal,
+            deviceId:        device.id,
+            deviceCode:      device.deviceCode,
+            rawDeviceId:     String(rawDeviceId),
+            temperature:     displayTemp,
             recordedAt,
             isConnected:     true,
             lastHeartbeatAt: nowIso,
@@ -620,6 +657,9 @@ export async function processTelemetry(rawDeviceId, data) {
         if (String(rawDeviceId) !== String(device.id)) {
             io.to(`device:${rawDeviceId}`).emit("sensor:data", telemetryPayload);
         }
+        if (device.deviceCode && String(device.deviceCode) !== String(device.id) && String(device.deviceCode) !== String(rawDeviceId)) {
+            io.to(`device:${device.deviceCode}`).emit("sensor:data", telemetryPayload);
+        }
 
         return { bed: bedUpdate, telemetry: telemetryPayload };
     } catch (err) {
@@ -639,7 +679,7 @@ export function registerMqttHandler(client) {
             const data = JSON.parse(payload.toString());
             await processTelemetry(rawDeviceId, data);
         } catch (err) {
-            console.error("[MQTT] Gagal memproses pesan:", err.message);
+            console.error("[MQTT] Gagal parse payload:", err.message);
         }
     });
 }

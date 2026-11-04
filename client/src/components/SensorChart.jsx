@@ -33,6 +33,9 @@ const horizontalReferenceLinesPlugin = {
     ctx.save();
     lines.forEach(({ yValue, color, borderDash }) => {
       if (yValue === undefined || yValue === null) return;
+      if (y.min !== undefined && y.max !== undefined) {
+        if (yValue < y.min || yValue > y.max) return;
+      }
       const yPos = y.getPixelForValue(yValue);
       if (yPos < chartArea.top || yPos > chartArea.bottom) return;
 
@@ -90,7 +93,7 @@ const CHART_CONFIG = {
     domain: [34, 42],
   },
   spo2: {
-    label: "SpO₂",
+    label: "SpO₂ (Estimasi)",
     unit: "%",
     color: "#8b5cf6",
     bgColor: "rgba(139, 92, 246, 0.08)",
@@ -133,11 +136,50 @@ export default function SensorChart({
 
   if (!cfg) return null;
 
-  const labels = readings.map((r) =>
-    r.recordedAt ? format(new Date(r.recordedAt), "HH:mm:ss") : "—",
-  );
+  const labels = readings.map((r, i) => {
+    if (r.recordedAt) {
+      try {
+        return format(new Date(r.recordedAt), "HH:mm:ss");
+      } catch {
+        return `T-${readings.length - i}`;
+      }
+    }
+    return `T-${readings.length - i}`;
+  });
 
-  const values = readings.map((r) => r[metric] ?? null);
+  // Ekstrak nilai metrik dengan presisi desimal lengkap untuk menangkap fluktuasi
+  const values = readings.map((r) => {
+    const raw = r[metric] ?? (metric === "temperature" ? (r.temp ?? r.objectTemp) : null);
+    if (raw === null || raw === undefined || isNaN(Number(raw))) return null;
+    return Number(Number(raw).toFixed(metric === "temperature" ? 2 : 1));
+  });
+
+  // Skala dinamis adaptif untuk visualisasi fluktuasi bidang temperatur - waktu
+  const validVals = values.filter((v) => typeof v === "number" && !isNaN(v));
+  let yMin = cfg.domain[0];
+  let yMax = cfg.domain[1];
+
+  if (metric === "temperature") {
+    if (validVals.length > 0) {
+      const minV = Math.min(...validVals);
+      const maxV = Math.max(...validVals);
+      const diff = maxV - minV;
+      // Berikan padding adaptif di atas dan bawah agar gelombang fluktuasi terlihat jelas
+      const padding = Math.max(0.3, diff * 0.3);
+      yMin = Number((minV - padding).toFixed(1));
+      yMax = Number((maxV + padding).toFixed(1));
+
+      // Pastikan rentang skala minimal 1.2°C agar visualisasi fluktuasi halus dan tidak flat
+      if (yMax - yMin < 1.2) {
+        const center = (maxV + minV) / 2;
+        yMin = Number((center - 0.7).toFixed(1));
+        yMax = Number((center + 0.7).toFixed(1));
+      }
+    } else {
+      yMin = 35.5;
+      yMax = 38.5;
+    }
+  }
 
   // Periksa apakah heart rate memiliki status gerakan non-BAIK
   const upperBpmStatus = bpmStatus ? String(bpmStatus).trim().toUpperCase() : "BAIK";
@@ -169,13 +211,18 @@ export default function SensorChart({
         data: values.length > 0 ? values : [null],
         borderColor: cfg.color,
         backgroundColor: cfg.bgColor,
-        borderWidth: 2,
+        borderWidth: 2.5,
         tension: 0.35,
         fill: true,
-        pointRadius: values.length <= 1 ? 4 : 0,
-        pointHoverRadius: 5,
+        pointRadius: (ctx) => {
+          const count = ctx.dataset.data.length;
+          if (count <= 1) return 4;
+          if (count <= 25) return 3;
+          return 2;
+        },
+        pointHoverRadius: 6,
         pointBackgroundColor: cfg.color,
-        spanGaps: false,
+        spanGaps: true,
       },
     ],
   };
@@ -205,12 +252,17 @@ export default function SensorChart({
         },
       },
       y: {
-        min: cfg.domain[0],
-        max: cfg.domain[1],
+        min: yMin,
+        max: yMax,
         grid: {
           color: "rgba(156, 163, 175, 0.15)",
         },
         ticks: {
+          stepSize: metric === "temperature" ? 0.2 : undefined,
+          callback: (val) => {
+            if (metric === "temperature") return `${Number(val).toFixed(1)}°`;
+            return val;
+          },
           font: {
             size: 10,
             family: "var(--font-inter)",
@@ -234,7 +286,7 @@ export default function SensorChart({
           label: (context) => {
             const val = context.parsed.y;
             return val !== null && val !== undefined
-              ? `${Number(val).toFixed(1)} ${cfg.unit}`
+              ? `${Number(val).toFixed(metric === "temperature" ? 2 : 1)} ${cfg.unit}`
               : "—";
           },
         },

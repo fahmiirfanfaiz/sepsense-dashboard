@@ -21,8 +21,15 @@ export const dashboardRepository = {
    * Ambil sesi aktif milik satu device tertentu.
    */
   async findActiveSessionByDeviceId(deviceId) {
+    let numericId = Number(deviceId);
+    if (isNaN(numericId)) {
+      const dev = await db.orm.public.Device.where({ deviceCode: String(deviceId) }).first();
+      if (dev) numericId = dev.id;
+    }
+    if (isNaN(numericId)) return null;
+
     const session = await db.orm.public.MonitoringSession.where({
-      deviceId: Number(deviceId),
+      deviceId: numericId,
       endedAt: null,
     })
       .include("device")

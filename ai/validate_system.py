@@ -1,10 +1,16 @@
 """=============================================================================
-SepSense - Verification & Validation (V&V) Engine
+SepSense - Verification & Validation (V&V) Engine (Updated: SpO2 as Estimation)
 Monte Carlo Synthetic Simulation with Realistic Sensor Noise & Boundary Analysis
 =============================================================================
 
+Sesuai Firmware v4.5 & Penyesuaian Klinis:
+- Parameter Aktif Scoring SIRS: 3 Parameter Terkalibrasi (HR, RR, Temperature)
+- SpO2: Estimasi fisiologis (hanya ditampilkan, tidak masuk ke risk score)
+- Rentang Skor Fisiologis Aktif: 0 - 3 (Stabil, Perlu Diamati, Waspada, Perlu Perhatian)
+- Threshold Alert Kritis: Skor >= 2 (Waspada & Perlu Perhatian)
+
 Menghasilkan:
-1. Multiclass Confusion Matrix (5x5) untuk Evaluasi Risk Score SIRS (0–4)
+1. Multiclass Confusion Matrix (4x4) untuk Evaluasi Risk Score SIRS (0–3)
 2. Binary Confusion Matrix (2x2) untuk Evaluasi Notifikasi Alert (YA / TIDAK)
 3. Ringkasan Metrik Formal (Accuracy, Precision, Recall, F1-Score, Specificity)
 4. Plot Heatmap berkualitas publikasi ilmiah / laporan skripsi.
@@ -25,37 +31,51 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 # Path artifacts directory Antigravity
 ARTIFACTS_DIR = r"C:\Users\Lenovo\.gemini\antigravity\brain\91fc857d-3e3d-4db5-aaba-da7101bffcac"
 
+# Konfigurasi SpO2: False = SpO2 adalah estimasi, skor dihitung dari HR, RR, dan Temp
+SCORE_SPO2 = False
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. Truth Table Medis SepSense (16 Kombinasi SIRS 2^4)
+# 1. Truth Table Medis SepSense (16 Kombinasi Uji dengan SpO2 sebagai Estimasi)
 # ─────────────────────────────────────────────────────────────────────────────
+# Catatan Klinis:
+# SpO2 tetap diuji pada level normal (98%) dan desaturasi/hipoksia (92%) untuk
+# membuktikan secara empiris bahwa variasi SpO2 tidak mengacaukan skor SIRS (0-3).
 SIRS_SPECS = [
     {"mode": 1,  "name": "Normal",               "c1": False, "c2": False, "c3": False, "c4": False, "nom": (75, 16, 36.8, 98), "score": 0, "alert": False},
     {"mode": 2,  "name": "HR Abnormal",          "c1": True,  "c2": False, "c3": False, "c4": False, "nom": (110, 16, 36.8, 98), "score": 1, "alert": False},
     {"mode": 3,  "name": "RR Abnormal",          "c1": False, "c2": True,  "c3": False, "c4": False, "nom": (75, 24, 36.8, 98), "score": 1, "alert": False},
     {"mode": 4,  "name": "Demam",                "c1": False, "c2": False, "c3": True,  "c4": False, "nom": (75, 16, 38.5, 98), "score": 1, "alert": False},
-    {"mode": 5,  "name": "Hipoksia",             "c1": False, "c2": False, "c3": False, "c4": True,  "nom": (75, 16, 36.8, 92), "score": 1, "alert": False},
+    # Mode 5: SpO2 rendah, namun karena SpO2 adalah estimasi, skor tetap 0 (Stabil)
+    {"mode": 5,  "name": "Hipoksia (Estimasi)",  "c1": False, "c2": False, "c3": False, "c4": True,  "nom": (75, 16, 36.8, 92), "score": 0, "alert": False},
     {"mode": 6,  "name": "HR + RR",              "c1": True,  "c2": True,  "c3": False, "c4": False, "nom": (110, 24, 36.8, 98), "score": 2, "alert": True},
     {"mode": 7,  "name": "HR + Demam",           "c1": True,  "c2": False, "c3": True,  "c4": False, "nom": (110, 16, 38.5, 98), "score": 2, "alert": True},
-    {"mode": 8,  "name": "HR + Hipoksia",        "c1": True,  "c2": False, "c3": False, "c4": True,  "nom": (110, 16, 36.8, 92), "score": 2, "alert": True},
+    # Mode 8: HR abnormal + SpO2 rendah -> skor 1 (hanya HR yang masuk skor)
+    {"mode": 8,  "name": "HR + Hipoksia",        "c1": True,  "c2": False, "c3": False, "c4": True,  "nom": (110, 16, 36.8, 92), "score": 1, "alert": False},
     {"mode": 9,  "name": "RR + Demam",           "c1": False, "c2": True,  "c3": True,  "c4": False, "nom": (75, 24, 38.5, 98), "score": 2, "alert": True},
-    {"mode": 10, "name": "RR + Hipoksia",        "c1": False, "c2": True,  "c3": False, "c4": True,  "nom": (75, 24, 36.8, 92), "score": 2, "alert": True},
-    {"mode": 11, "name": "Demam + Hipoksia",     "c1": False, "c2": False, "c3": True,  "c4": True,  "nom": (75, 16, 38.5, 92), "score": 2, "alert": True},
+    # Mode 10: RR abnormal + SpO2 rendah -> skor 1
+    {"mode": 10, "name": "RR + Hipoksia",        "c1": False, "c2": True,  "c3": False, "c4": True,  "nom": (75, 24, 36.8, 92), "score": 1, "alert": False},
+    # Mode 11: Demam + SpO2 rendah -> skor 1
+    {"mode": 11, "name": "Demam + Hipoksia",     "c1": False, "c2": False, "c3": True,  "c4": True,  "nom": (75, 16, 38.5, 92), "score": 1, "alert": False},
     {"mode": 12, "name": "HR + RR + Demam",      "c1": True,  "c2": True,  "c3": True,  "c4": False, "nom": (110, 24, 38.5, 98), "score": 3, "alert": True},
-    {"mode": 13, "name": "HR + RR + Hipoksia",   "c1": True,  "c2": True,  "c3": False, "c4": True,  "nom": (110, 24, 36.8, 92), "score": 3, "alert": True},
-    {"mode": 14, "name": "HR + Demam + Hipoksia","c1": True,  "c2": False, "c3": True,  "c4": True,  "nom": (110, 16, 38.5, 92), "score": 3, "alert": True},
-    {"mode": 15, "name": "RR + Demam + Hipoksia","c1": False, "c2": True,  "c3": True,  "c4": True,  "nom": (75, 24, 38.5, 92), "score": 3, "alert": True},
-    {"mode": 16, "name": "Kritis Sepsis Penuh",  "c1": True,  "c2": True,  "c3": True,  "c4": True,  "nom": (110, 24, 38.5, 92), "score": 4, "alert": True},
+    # Mode 13: HR + RR + SpO2 rendah -> skor 2 (HR & RR)
+    {"mode": 13, "name": "HR + RR + Hipoksia",   "c1": True,  "c2": True,  "c3": False, "c4": True,  "nom": (110, 24, 36.8, 92), "score": 2, "alert": True},
+    # Mode 14: HR + Demam + SpO2 rendah -> skor 2 (HR & Demam)
+    {"mode": 14, "name": "HR + Demam + Hipoksia","c1": True,  "c2": False, "c3": True,  "c4": True,  "nom": (110, 16, 38.5, 92), "score": 2, "alert": True},
+    # Mode 15: RR + Demam + SpO2 rendah -> skor 2 (RR & Demam)
+    {"mode": 15, "name": "RR + Demam + Hipoksia","c1": False, "c2": True,  "c3": True,  "c4": True,  "nom": (75, 24, 38.5, 92), "score": 2, "alert": True},
+    # Mode 16: Semua abnormal -> skor 3 (HR, RR, Demam terhitung, SpO2 estimasi)
+    {"mode": 16, "name": "Semua Parameter Fisiologis Kritis", "c1": True, "c2": True, "c3": True, "c4": True, "nom": (110, 24, 38.5, 92), "score": 3, "alert": True},
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. Logika Rule Engine SepSense
+# 2. Logika Rule Engine SepSense (3 Parameter Aktif Terkalibrasi)
 # ─────────────────────────────────────────────────────────────────────────────
-def evaluate_sirs(hr, rr, temp, spo2):
+def evaluate_sirs(hr, rr, temp, spo2=None, score_spo2=SCORE_SPO2):
     """Mengevaluasi pembacaan sensor fisiologis terhadap batas kriteria SIRS."""
     c1 = (hr < 60) or (hr > 90)
     c2 = rr > 20
     c3 = (temp < 36.0) or (temp > 38.0)
-    c4 = spo2 < 95.1
+    c4 = (spo2 < 95.1) if (score_spo2 and spo2 is not None) else False
 
     score = int(c1) + int(c2) + int(c3) + int(c4)
     alert = score >= 2
@@ -95,10 +115,9 @@ def generate_monte_carlo_dataset(samples_per_mode=200, boundary_samples=300, see
                 spo2_base = np.random.uniform(96.5, 99.5)
 
             # Injeksi Sensor Measurement Noise (derau instrumen optik & termal)
-            # HR: sigma ~ 1.5 bpm, RR: sigma ~ 0.8 rpm, Temp: sigma ~ 0.1 C, SpO2: sigma ~ 0.4%
             measured_hr = round(hr_base + np.random.normal(0, 1.2), 0)
             measured_rr = round(rr_base + np.random.normal(0, 0.7), 0)
-            measured_temp = round(temp_base + np.random.normal(0, 0.08), 1)
+            measured_temp = round(temp_base + np.random.normal(0, 0.08), 2)
             measured_spo2 = round(min(100.0, spo2_base + np.random.normal(0, 0.3)), 1)
 
             dataset.append({
@@ -113,12 +132,10 @@ def generate_monte_carlo_dataset(samples_per_mode=200, boundary_samples=300, see
             })
 
     # B. Kasus Ambang Batas (Boundary Value Analysis / Borderline Transition)
-    # Di dunia nyata, pasien di perbatasan (misal HR 89.8 vs 90.3 bpm) bisa memicu pergeseran skor tetangga
+    # Fokus pada 3 parameter penentu skor: HR (90 bpm), RR (20 rpm), Temp (38.0 C)
     for _ in range(boundary_samples):
-        # Pilih secara acak satu parameter yang berada tepat di garis batas
-        target_param = np.random.choice(["hr", "rr", "temp", "spo2"])
+        target_param = np.random.choice(["hr", "rr", "temp"])
         
-        # Ground truth dasar acak (Skor 0 - 3)
         base_spec = np.random.choice(SIRS_SPECS)
         nom_hr, nom_rr, nom_temp, nom_spo2 = base_spec["nom"]
         
@@ -127,21 +144,13 @@ def generate_monte_carlo_dataset(samples_per_mode=200, boundary_samples=300, see
         temp = float(nom_temp)
         spo2 = float(nom_spo2)
 
-        # Injeksi nilai tepat di perbatasan ambang klinis (+- derau kecil)
         if target_param == "hr":
-            # Ambang batas HR: 90 bpm
             hr = round(90.0 + np.random.uniform(-1.5, 1.5), 1)
         elif target_param == "rr":
-            # Ambang batas RR: 20 rpm
             rr = round(20.0 + np.random.uniform(-1.0, 1.0), 1)
         elif target_param == "temp":
-            # Ambang batas Temp: 38.0 C
             temp = round(38.0 + np.random.uniform(-0.25, 0.25), 2)
-        elif target_param == "spo2":
-            # Ambang batas SpO2: 95.1 %
-            spo2 = round(95.1 + np.random.uniform(-0.5, 0.5), 1)
 
-        # Hitung ground truth teoritis vs evaluasi terukur
         exp_score = base_spec["score"]
         exp_alert = base_spec["alert"]
 
@@ -164,6 +173,7 @@ def generate_monte_carlo_dataset(samples_per_mode=200, boundary_samples=300, see
 def run_evaluation():
     print("=" * 80)
     print("  SepSense V&V Framework - Simulasi Monte Carlo & Uji Ambang Batas Klinis  ")
+    print("  (Konfigurasi Terkalibrasi: SpO2 sebagai Estimasi | Skor Aktif 0 - 3)   ")
     print("=" * 80)
 
     df = generate_monte_carlo_dataset(samples_per_mode=200, boundary_samples=300, seed=42)
@@ -177,7 +187,7 @@ def run_evaluation():
     eval_alerts = []
 
     for _, row in df.iterrows():
-        s, a, _ = evaluate_sirs(row["hr"], row["rr"], row["temp"], row["spo2"])
+        s, a, _ = evaluate_sirs(row["hr"], row["rr"], row["temp"], row["spo2"], score_spo2=SCORE_SPO2)
         eval_scores.append(s)
         eval_alerts.append(a)
 
@@ -189,20 +199,19 @@ def run_evaluation():
     alert_accuracy = (df["true_alert"] == df["eval_alert"]).mean() * 100
 
     print(f"\n[2/4] Hasil Evaluasi Komputasi:")
-    print(f"      * Akurasi Risk Score SIRS (Multiclass 0–4) : {score_accuracy:.2f}%")
+    print(f"      * Akurasi Risk Score SIRS (Multiclass 0–3) : {score_accuracy:.2f}%")
     print(f"      * Akurasi Notifikasi Alert (Binary YA/TDK) : {alert_accuracy:.2f}%")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 5. Visualisasi Heatmap 1: Multiclass Confusion Matrix (5x5)
+    # 5. Visualisasi Heatmap 1: Multiclass Confusion Matrix (4x4: Skor 0–3)
     # ─────────────────────────────────────────────────────────────────────────
     labels_score = [
         "Skor 0\n(Stabil)",
         "Skor 1\n(Perlu Diamati)",
         "Skor 2\n(Waspada)",
-        "Skor 3\n(Perhatian)",
-        "Skor 4\n(Kritis)"
+        "Skor 3\n(Perlu Perhatian)"
     ]
-    cm_score = confusion_matrix(df["true_score"], df["eval_score"], labels=[0, 1, 2, 3, 4])
+    cm_score = confusion_matrix(df["true_score"], df["eval_score"], labels=[0, 1, 2, 3])
 
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
     fig, ax = plt.subplots(figsize=(8.5, 7), dpi=300)
@@ -212,8 +221,8 @@ def run_evaluation():
     cm_pct = np.divide(cm_score, cm_sum, out=np.zeros_like(cm_score, dtype=float), where=cm_sum != 0) * 100
 
     annot_matrix = np.empty_like(cm_score, dtype=object)
-    for i in range(5):
-        for j in range(5):
+    for i in range(4):
+        for j in range(4):
             count = cm_score[i, j]
             pct = cm_pct[i, j]
             if count > 0:
@@ -232,12 +241,12 @@ def run_evaluation():
         linewidths=1.2,
         linecolor="#ffffff",
         ax=ax,
-        annot_kws={"fontsize": 10, "fontweight": "bold"}
+        annot_kws={"fontsize": 11, "fontweight": "bold"}
     )
 
     ax.set_title(
-        f"Multiclass Confusion Matrix: Evaluasi Risk Score SIRS (N={total_samples})\n"
-        f"Overall Accuracy: {score_accuracy:.2f}% | Realistic Sensor Noise Injection",
+        f"Multiclass Confusion Matrix: Evaluasi Risk Score SIRS (Skor 0-3 | N={total_samples})\n"
+        f"Overall Accuracy: {score_accuracy:.2f}% | SpO2: Estimasi | Realistic Noise & Boundary",
         fontsize=12, fontweight="bold", pad=15, color="#1e293b"
     )
     ax.set_xlabel("Hasil Evaluasi Sistem SepSense (Predicted Score)", fontsize=10, fontweight="bold", labelpad=10)
@@ -294,7 +303,7 @@ def run_evaluation():
     f1 = 2 * (precision * sensitivity) / (precision + sensitivity)
 
     ax.set_title(
-        f"Binary Confusion Matrix: Notifikasi Alert Klinis (N={total_samples})\n"
+        f"Binary Confusion Matrix: Notifikasi Alert Klinis (Skor >= 2 | N={total_samples})\n"
         f"Sens: {sensitivity:.1f}% | Spec: {specificity:.1f}% | F1: {f1/100:.3f}",
         fontsize=11, fontweight="bold", pad=15, color="#1e293b"
     )
@@ -315,6 +324,7 @@ def run_evaluation():
 
     # Simpan ringkasan metrik dalam JSON
     summary = {
+        "score_spo2": SCORE_SPO2,
         "total_samples": int(total_samples),
         "standard_samples": int(len(df[df["type"] == "standard_mode"])),
         "boundary_samples": int(len(df[df["type"] == "boundary_edge"])),
@@ -333,7 +343,7 @@ def run_evaluation():
         json.dump(summary, f, indent=2)
 
     print("\n" + "=" * 80)
-    print("  RINGKASAN HASIL EVALUASI REALISTIS SISTEM SEPSENSE")
+    print("  RINGKASAN HASIL EVALUASI REALISTIS SISTEM SEPSENSE (SPO2 ESTIMASI)")
     print("=" * 80)
     print(f"  Total Data Uji (N)            : {total_samples} sampel")
     print(f"  Akurasi Evaluasi Risk Score    : {score_accuracy:.2f}% (Standar Medis: > 90% Sangat Baik)")
@@ -347,4 +357,3 @@ def run_evaluation():
 
 if __name__ == "__main__":
     run_evaluation()
-

@@ -116,7 +116,7 @@ export async function getDeviceDetail(deviceId) {
 
   // Cari device langsung jika tidak ada sesi aktif
   const devices = await dashboardRepository.findAllDevicesWithActiveSession();
-  const entry = devices.find((e) => e.device.id === Number(deviceId));
+  const entry = devices.find((e) => e.device.id === Number(deviceId) || String(e.device.deviceCode) === String(deviceId));
 
   if (!entry) {
     throw new AppError(404, "Device tidak ditemukan.", "DEVICE_NOT_FOUND");

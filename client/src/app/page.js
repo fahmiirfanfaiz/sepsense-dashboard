@@ -636,7 +636,10 @@ export default function MainDashboard() {
         if (!statusPayload?.deviceId) return;
         setBeds((prev) => {
           const list = prev.filter((b) => b.deviceId !== "default");
-          const idx = list.findIndex((b) => String(b.deviceId) === String(statusPayload.deviceId));
+          const idx = list.findIndex((b) =>
+            String(b.deviceId) === String(statusPayload.deviceId) ||
+            (statusPayload.deviceCode && String(b.deviceCode) === String(statusPayload.deviceCode))
+          );
           if (idx >= 0) {
             const next = [...list];
             next[idx] = { ...next[idx], ...statusPayload, isConnected: true };
@@ -659,12 +662,15 @@ export default function MainDashboard() {
               c1Hr: Boolean(payload.c1_hr),
               c2Rr: Boolean(payload.c2_rr),
               c3Temp: Boolean(payload.c3_temp),
-              c4Spo2: Boolean(payload.c4_spo2),
+              c4Spo2: false,
             } : null));
 
         setBeds((prev) => {
           const list = prev.filter((b) => b.deviceId !== "default");
-          const idx = list.findIndex((b) => String(b.deviceId) === String(devId));
+          const idx = list.findIndex((b) =>
+            String(b.deviceId) === String(devId) ||
+            (payload.deviceCode && String(b.deviceCode) === String(payload.deviceCode))
+          );
           if (idx >= 0) {
             const next = [...list];
             next[idx] = {

@@ -1,58 +1,48 @@
 {
+  "score_spo2": false,
   "total_samples": 3500,
   "standard_samples": 3200,
   "boundary_samples": 300,
-  "risk_score_accuracy": 95.66,
-  "alert_accuracy": 98.54,
-  "alert_sensitivity": 98.72,
-  "alert_specificity": 98.15,
-  "alert_precision": 99.17,
-  "alert_f1_score": 0.9894,
+  "risk_score_accuracy": 95.74,
+  "alert_accuracy": 97.71,
+  "alert_sensitivity": 97.32,
+  "alert_specificity": 98.11,
+  "alert_precision": 98.1,
+  "alert_f1_score": 0.9771,
   "confusion_matrix_score": [
     [
-      211,
-      4,
-      0,
+      418,
+      14,
       0,
       0
     ],
     [
-      9,
-      839,
       20,
-      0,
+      1261,
+      33,
       0
     ],
     [
       0,
-      31,
-      1253,
-      31,
-      0
+      47,
+      1258,
+      13
     ],
     [
       0,
       0,
-      36,
-      838,
-      9
-    ],
-    [
-      0,
-      0,
-      0,
-      12,
-      207
+      22,
+      414
     ]
   ],
   "confusion_matrix_alert": [
     [
-      1063,
-      20
+      1713,
+      33
     ],
     [
-      31,
-      2386
+      47,
+      1707
     ]
   ]
 }

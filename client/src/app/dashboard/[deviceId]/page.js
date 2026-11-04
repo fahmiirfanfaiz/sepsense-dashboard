@@ -166,7 +166,7 @@ function RiskCard({ riskAssessment, isWarmingUp, sampleCount }) {
     { key: "c1Hr", name: "Heart Rate" },
     { key: "c2Rr", name: "Respiratory Rate" },
     { key: "c3Temp", name: "Suhu Tubuh" },
-    { key: "c4Spo2", name: "SpO₂" },
+    { key: "c4Spo2", name: "SpO₂ (estimasi)", isEstimate: true },
   ];
 
   return (
@@ -183,6 +183,7 @@ function RiskCard({ riskAssessment, isWarmingUp, sampleCount }) {
           <p className="text-[11px] text-muted-foreground font-inter">
             Status:{" "}
             <span className="font-semibold text-foreground">{riskAssessment.riskLevel}</span>
+            <span className="text-muted-foreground/80 ml-1.5 font-medium">(Skor {riskAssessment.riskScore} dari 3)</span>
           </p>
         </div>
       </div>
@@ -190,6 +191,17 @@ function RiskCard({ riskAssessment, isWarmingUp, sampleCount }) {
       {/* Criteria breakdown */}
       <div className="grid grid-cols-2 gap-2">
         {criteria.map((c) => {
+          if (c.isEstimate) {
+            return (
+              <div
+                key={c.key}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-inter bg-zinc-100/70 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50"
+              >
+                <Activity className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+                <span>{c.name}</span>
+              </div>
+            );
+          }
           const isAbnormal = Boolean(riskAssessment[c.key]);
           return (
             <div
@@ -640,6 +652,7 @@ export default function DetailedDashboardPage() {
         const match =
           String(payload.deviceId) === String(deviceId) ||
           String(payload.deviceCode) === String(deviceId) ||
+          String(payload.rawDeviceId) === String(deviceId) ||
           String(payload.bed?.deviceId) === String(deviceId) ||
           String(payload.bed?.deviceCode) === String(deviceId);
 
@@ -662,21 +675,42 @@ export default function DetailedDashboardPage() {
           setLatestWindowStats(payload.windowStats);
         }
 
+        // Ekstrak pembacaan suhu dengan presisi float asli untuk bidang temperatur - waktu
+        const rawTemp = payload.temperature ?? payload.temp ?? payload.objectTemp ?? null;
+        const tempFloat = rawTemp != null && !isNaN(Number(rawTemp)) ? Number(Number(rawTemp).toFixed(2)) : null;
+
         const newReading = {
-          id: Date.now(),
+          id: payload.id || Date.now(),
           recordedAt: payload.recordedAt || new Date().toISOString(),
-          heartRate: payload.heartRate ?? null,
-          respiratoryRate: payload.respiratoryRate ?? null,
-          spo2: payload.spo2 ?? null,
-          temperature: payload.temperature ?? null,
+          heartRate: payload.heartRate != null ? Number(payload.heartRate) : null,
+          respiratoryRate: payload.respiratoryRate != null ? Number(payload.respiratoryRate) : null,
+          spo2: payload.spo2 != null ? Number(payload.spo2) : null,
+          temperature: tempFloat,
           bpmStatus: currentBpmStatus,
           assessment: payload.riskAssessment || null,
         };
 
-        setLiveReadings((prev) => {
-          const next = [...prev, newReading];
-          return next.length > 60 ? next.slice(-60) : next;
-        });
+        const hasVitalReading =
+          newReading.heartRate != null ||
+          newReading.respiratoryRate != null ||
+          newReading.temperature != null ||
+          newReading.spo2 != null;
+
+        if (hasVitalReading) {
+          setLiveReadings((prev) => {
+            if (prev.length > 0) {
+              const last = prev[prev.length - 1];
+              // Gabungkan jika paket ganda di timestamp yang persis sama
+              if (last.recordedAt === newReading.recordedAt) {
+                const updated = [...prev];
+                updated[updated.length - 1] = { ...last, ...newReading };
+                return updated;
+              }
+            }
+            const next = [...prev, newReading];
+            return next.length > 60 ? next.slice(-60) : next;
+          });
+        }
 
         // Update status koneksi, heartbeat, dan risk assessment
         // PENTING: Jika masih warm-up, JANGAN timpa riskAssessment yang sudah ada

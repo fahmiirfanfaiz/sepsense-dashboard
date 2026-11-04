@@ -138,7 +138,7 @@ function AlertToast({ alert, onDismiss }) {
           {alert.patientName && " • "}
           {alert.label} &nbsp;
           <span className={cn("inline-block px-1.5 py-0.5 rounded text-[11px] font-bold", config.badge)}>
-            Skor {alert.riskScore}: {statusText}
+            Skor {alert.riskScore} dari 3: {statusText}
           </span>
         </p>
         {alert.roomBed && (
