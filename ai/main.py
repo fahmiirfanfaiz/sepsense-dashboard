@@ -21,6 +21,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -336,6 +340,12 @@ def predict_window(req: WindowPredictRequest) -> WindowPredictResponse:
         window_end=window_end.to_pydatetime(),
         hours_used=int(len(hourly)),
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
